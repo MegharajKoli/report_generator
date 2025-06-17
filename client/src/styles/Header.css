@@ -1,0 +1,49 @@
+.header {
+  background-color: #f3dfb6;
+  padding: 4px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header h1 {
+  color: #106694;
+  font-size: 30px;
+}
+
+.logo {
+  height: 50px;
+}
+
+.login-btn {
+  background-color: #54b1e2;
+  padding: 0.5px 20px;
+  border-radius: 15px;
+  border: 1px solid black;
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out;
+  height: 35px;
+  width: 125px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.header .login-btn:hover {
+  transform: scale(1.1);
+}
+
+/* Optional: style for logout popup if it exists */
+.logout-popup {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background-color: #f54c7e;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  z-index: 1000;
+}

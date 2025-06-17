@@ -1,0 +1,150 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=M+PLUS+Rounded+1c&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Anton", sans-serif;
+  font-weight: 400;
+}
+
+body {
+  background-color: #fff;
+  color: #000;
+}
+
+
+/* Container Layout */
+.container {
+  display: flex;
+}
+
+/* Left Panel */
+.left-panel {
+  flex: 1;
+  background: #f9f1e7;
+  padding: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-top-right-radius: 150px;
+  border-bottom-right-radius: 150px;
+  box-shadow: inset -10px 0 30px -10px #f4c879;
+}
+
+.left-panel h1 {
+  font-size: 32px;
+  margin-bottom: 20px;
+  color: #000;
+}
+
+.left-panel h1 span {
+  color: #106694;
+}
+
+.left-panel p {
+  font-size: 18px;
+  color: #000;
+  font-weight: bold;
+  font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+}
+
+.left-panel img {
+  width: 20rem;
+  margin-left: 30px;
+  transition: transform 0.3s ease-in-out;
+}
+
+.left-panel img:hover {
+  transform: scale(1.1);
+}
+
+/* Right Panel */
+.right-panel {
+  flex: 1;
+  padding: 60px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.right-panel h1 {
+  font-size: 28px;
+  margin-bottom: 30px;
+  font-weight: 200;
+  color: #000;
+}
+
+.right-panel img {
+  width: 10rem;
+  padding-top: 20px;
+}
+
+/* Reports Section */
+.reports {
+  display: flex;
+  gap: 40px;
+}
+
+.report-card {
+  text-align: center;
+  margin-top: -30px;
+}
+
+.report-card img {
+  width: 200px;
+  height: 170px;
+  transition: transform 0.3s ease-in-out;
+}
+
+.report-card img:hover {
+  transform: scale(1.1);
+}
+
+.report-btn {
+  margin-top: 1px;
+  background-color: #f54c7e;
+  color: white;
+  border: none;
+  padding: 8px 10px;
+  font-weight: 100;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.report-btn:hover {
+  transform: scale(1.1);
+}
+
+
+.label,
+.user-type,
+.role {
+  font-size: 16px;
+}
+
+.label,
+.user-type {
+  margin-right: 4px;
+}
+
+.role {
+  color: #106694;
+  font-weight: bold;
+}
+body, html {
+  height: 100%;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.container {
+  flex: 1; /* Let it grow to fill space */
+  display: flex;
+}

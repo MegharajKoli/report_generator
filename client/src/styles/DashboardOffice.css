@@ -1,0 +1,143 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=M+PLUS+Rounded+1c&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    font-family: "Anton", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #fff;
+    color: #ffffff;
+  }
+  
+
+
+  
+  .container {
+    display: flex;
+    height: calc(100vh - 100px);
+  }
+  
+  .left-panel {
+    flex: 1;
+    background: #f9f1e7;
+    padding: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-top-right-radius: 150px;
+    border-bottom-right-radius: 150px ;
+    box-shadow: inset -10px 0 30px -10px #f4c879;
+  }
+  
+  
+  .left-panel h1 {
+    font-size: 32px;
+    margin-bottom: 20px;
+    color: #000;
+  }
+  
+  .left-panel p {
+    font-size: 18px;
+    color: #000000;
+    font-weight: bold;
+    font-family:Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+   
+  }
+  
+  .right-panel {
+    flex: 1;
+    padding: 60px 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .right-panel h1 {
+    font-size: 28px;
+    margin-bottom: 30px;
+
+    font-weight: 200;
+    color: #000000;
+  }
+  .report-card {
+    text-align: center;
+    margin-top: -30px; /* move upward */
+  }
+  
+  
+  .reports {
+    display: flex;
+    gap: 70px;
+  }
+  
+  .report-card {
+    text-align: center;
+  }
+  
+  
+  .report-card img {
+    width: 200px;
+    height: 170px;
+    transition: transform 0.3s ease-in-out;
+    
+  }
+  .report-card  img:hover
+  {
+    transform: scale(1.1);
+  }
+  
+  .report-btn {
+    margin-top: 1px;
+    background-color: #f54c7e;
+    color: white;
+    border: none;
+    padding: 8px 10px;
+    font-weight: 100;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: 0.2s ease-in-out;
+  }
+
+  .report-btn:hover{
+    transform: scale(1.1);
+  }
+  
+ 
+  
+  .label,
+  .user-type {
+    margin-right: 4px;
+  }
+  
+  .role {
+    color: #106694; 
+    
+    margin-right: 4px;
+  }
+  
+
+.container .left-panel h1 span{
+    color: #106694;;
+
+  }
+  .container .left-panel img{
+    width: 20rem;
+    margin-left: 30px;
+    transition: transform 0.3s ease-in-out;
+  }
+  .container.left-panel img:hover{
+
+    transform: scale(1.1);
+  }
+
+  .container .right-panel img{
+    width: 10rem;
+    padding-top: 20px;
+  }

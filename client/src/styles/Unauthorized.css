@@ -1,0 +1,17 @@
+/* src/styles/Unauthorized.css */
+.unauthorized-container {
+    text-align: center;
+    margin-top: 100px;
+    color: #e63946;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  
+  .unauthorized-container h2 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+  }
+  
+  .unauthorized-container p {
+    font-size: 1.2rem;
+  }
+  
