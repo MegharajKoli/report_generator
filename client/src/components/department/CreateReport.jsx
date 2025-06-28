@@ -243,10 +243,10 @@ function CreateReport() {
       const marginBottom = 15;
       const maxWidth = pageWidth - 2 * marginLeft;
       const lineHeight = 6;
-      const analyticsWidth = 160;
-      const analyticsHeight = 120;
-      const smallImageWidth = 110;
-      const smallImageHeight = 120;
+      const analyticsWidth = 110;
+      const analyticsHeight = 100;
+      const smallImageWidth = 90;
+      const smallImageHeight = 100;
       const posterWidth = 120;
       const posterHeight = 150;
       const largeImageWidth = 180;
@@ -413,10 +413,13 @@ function CreateReport() {
       addTextSection(`Type: ${reportData.eventType || 'N/A'}`, 5, 12, 'bold');
       currentY += 10;
 
+      doc.addPage();
+      currentY = marginTop;
+
       if (reportData.feedback) {
         console.log('Feedback data:', JSON.stringify(reportData.feedback, null, 2));
         addNewPageIfNeeded(20);
-        addTextSection('Feedback:', 0, 14, 'bold');
+        addTextSection('Feedback:', 0, 14, 'bold','center');
         currentY += 10;
         if (!reportData.feedback || reportData.feedback.length === 0) {
           addTextSection('No feedback available', 5, 12, 'normal');
@@ -466,8 +469,11 @@ function CreateReport() {
         currentY += 10;
       }
 
+      doc.addPage();
+      currentY = marginTop;
+
       if (reportData.photographs?.length > 0) {
-        addTextSection('Photographs:', 0, 14, 'bold');
+        addTextSection('Photographs:', 0, 14, 'bold','center');
         currentY += 5;
         let imagesOnPage = 0;
         for (const [index, img] of reportData.photographs.entries()) {
@@ -930,6 +936,7 @@ function CreateReport() {
           <button
             type="submit"
             className="submit-btn"
+            disabled={isSubmitted}
             onClick={handleButtonClick}
             style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
           >

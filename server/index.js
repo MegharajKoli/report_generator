@@ -4,6 +4,8 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const authRoutes = require("./routes/authRoutes");
 const reportRoutes = require('./routes/reportRoutes');
+require('dotenv').config();
+const uri = process.env.MONGODB_URI;
 
 dotenv.config(); // Load .env file
 
@@ -16,7 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 
 
 // MongoDB Connection
-mongoose.connect("mongodb://localhost:27017/report_generator", {
+mongoose.connect(uri, {
   
 })
 .then(() => console.log("✅ MongoDB connected"))

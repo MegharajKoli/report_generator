@@ -1,8 +1,10 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const User = require("./models/User");
+require('dotenv').config();
+const uri = process.env.MONGODB_URI;
 
-mongoose.connect("mongodb://localhost:27017/report_generator", {
+mongoose.connect(uri, {
   
 });
 
