@@ -4,6 +4,8 @@ import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import '../styles/Login.css'; // Assuming you have a CSS file for styling
 
+
+
 function Login() {
   const [formData, setFormData] = useState({
     userId: '',
@@ -51,7 +53,7 @@ function Login() {
       <div className="login-box">
         <div className="login-header">
           <img src="/wit_logo.png" alt="WIT Logo" className="logo-img" />
-          <h1 className="institute-name">WALCHAND INSTITUTE OF TECHNOLOGY, SOLAPUR</h1>
+          <h1 style= {{ fontfamily: "Anton sans-serif"}} className="institute-name">WALCHAND INSTITUTE OF TECHNOLOGY, SOLAPUR</h1>
         </div>
 
         <div className="login-content">
@@ -60,7 +62,7 @@ function Login() {
           </div>
 
           <div className="login-form-section">
-            <h2 className="form-title">Report page</h2>
+            <h2 style={{ fontFamily: "'Lato', sans-serif"  , fontWeight : "bold"}} className="form-title">Report page</h2>
 
             {isLoggedOut && (
               <p className="logout-message">You have been successfully logged out.</p>
@@ -70,7 +72,7 @@ function Login() {
 
             <form onSubmit={handleSubmit} >
               <div className="form-group">
-                <label htmlFor="userId">UserID:</label>
+                <label style={{ fontFamily: "'Open Sans', sans-serif" }} className='txt' htmlFor="userId">UserID:</label>
                 <input
                   type="text"
                   id="userId"
@@ -82,7 +84,7 @@ function Login() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="password">Password:</label>
+                <label style={{ fontFamily: "'Open Sans', sans-serif" }} className='txt' htmlFor="password">Password:</label>
                 <input
                   type="password"
                   id="password"
@@ -93,7 +95,7 @@ function Login() {
                 />
               </div>
 
-              <button type="submit" className="login-btn">LOGIN</button>
+              <button style={{ fontFamily: "'Open Sans', sans-serif" }} type="submit" className="login-btn">LOGIN</button>
             </form>
           </div>
         </div>

@@ -689,6 +689,9 @@ function CreateReport() {
             onChange={(e) => handleSingleFileChange(e, 'poster')}
             style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
           />
+           <div>
+            {formData.poster && <p>{formData.poster.name}</p>}
+          </div>
         </div>
         <div className="form-group">
           <label>Speakers</label>
@@ -869,6 +872,9 @@ function CreateReport() {
             onChange={(e) => handleSingleFileChange(e, 'permissionImage')}
             style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
           />
+          <div>
+            {formData.permissionImage && <p>{formData.permissionImage.name}</p>}
+          </div>
         </div>
         <div className="form-group">
           <label>Feedback</label>

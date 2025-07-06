@@ -9,7 +9,7 @@ function Footer() {
     <footer className="footer">
       <span className="label">Logged in as</span>
       <span className="role">{user?.department || "Office"}</span>
-      <span className="user-type">{user?.role || "user"}</span>
+      <span className="user-type">{user?.role === "office" ? "admin" : user?.role}</span>
     </footer>
   );
 }

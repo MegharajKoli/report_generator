@@ -24,17 +24,17 @@ function DashboardOffice() {
         </section>
 
         <section className="right-panel">
-          <img src="/cal.png" alt="Calendar" />
+          <img id="cal" src="/cal.png" alt="Calendar" />
           <h1>GET STARTED!</h1>
           <div className="reports">
             {isAtDashboardOffice && (
               <>
                 <div className="report-card" onClick={() => navigate("download-reports")}> 
-                  <img src="/report.png" alt="Report Icon" />
+                  <img src="/AnnualReport.png" alt="Report Icon" />
                   <button className="report-btn">Download Annual Report</button>
                 </div>
                 <div className="report-card" onClick={() => navigate("view-reports")}> 
-                  <img src="/report.png" alt="Report Icon" />
+                  <img src="/PrevNew.png" alt="Report Icon" />
                   <button className="report-btn">View Previous Report</button>
                 </div>
                 
