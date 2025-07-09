@@ -369,6 +369,7 @@ function CreateReport() {
 
       addTextSection('Overview:', 0, 14, 'bold');
       currentY += 5;
+      addTextSection(`Academic Year: ${reportData.academicYear || 'N/A'}`, 5, 12, 'bold');
       addTextSection(`Event Name: ${reportData.eventName || 'N/A'}`, 5, 12, 'bold');
       addTextSection(`Organized by: ${reportData.organizedBy || 'N/A'}`, 5, 12, 'bold');
       addTextSection(`Department: ${reportData.department || 'N/A'}`, 5, 12, 'bold');
@@ -472,8 +473,8 @@ function CreateReport() {
       doc.addPage();
       currentY = marginTop;
 
-      if (reportData.photographs?.length > 0) {
-        addTextSection('Photographs:', 0, 14, 'bold','center');
+    if (reportData.photographs?.length > 0) {
+        addTextSection('Photographs:', 0, 14, 'bold', 'center');
         currentY += 5;
         let imagesOnPage = 0;
         for (const [index, img] of reportData.photographs.entries()) {
@@ -482,15 +483,25 @@ function CreateReport() {
             currentY = marginTop;
             imagesOnPage = 0;
           }
-          if (addNewPageIfNeeded(smallImageHeight + 15)) {
-            imagesOnPage = 0;
-          }
-          addTextSection(`Photograph ${index + 1}:`, 5, 12, 'italic');
           try {
             const validBase64 = validateBase64(img);
             if (validBase64) {
-              doc.addImage(validBase64, validBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG', pageWidth / 2 - smallImageWidth / 2, currentY, smallImageWidth, smallImageHeight);
-              currentY += smallImageHeight + 5;
+              const imgObj = new Image();
+              imgObj.src = validBase64;
+              await new Promise((resolve, reject) => {
+                imgObj.onload = resolve;
+                imgObj.onerror = reject;
+              });
+              const imgWidth = imgObj.width / 2.83465; // Convert pixels to mm (1 mm = 2.83465 points)
+              const imgHeight = imgObj.height / 2.83465; // Convert pixels to mm
+              if (addNewPageIfNeeded(imgHeight + 15)) {
+                imagesOnPage = 0;
+              }
+              addTextSection(`Photograph ${index + 1}:`, 5, 12, 'italic');
+              const xPosition = pageWidth / 2 - imgWidth / 2; // Center the image
+              doc.addImage(validBase64, validBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG', 
+                xPosition, currentY, imgWidth, imgHeight);
+              currentY += imgHeight + 5;
               imagesOnPage++;
             } else {
               addTextSection('Invalid photo data', 5, 10, 'normal');
@@ -562,6 +573,7 @@ function CreateReport() {
   };
 
   return (
+    <div className='reportcreate'>  
     <div className="create-report">
       <h2>Create Report for {formData.department || 'Department'}</h2>
       {error && <div className="error" style={{ color: 'red', fontSize: '14px', marginBottom: '10px' }}>{error}</div>}
@@ -901,6 +913,9 @@ function CreateReport() {
                 onChange={(e) => handleFeedbackAnalytics(e, index)}
                 style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
               />
+              <div>
+              {item.analytics && <p>{item.analytics.name}</p>}
+              </div>
               {formData.feedback.length > 1 && (
                 <button
                   type="button"
@@ -960,6 +975,7 @@ function CreateReport() {
         </div>
       </form>
     </div>
+     </div>
   );
 }
 

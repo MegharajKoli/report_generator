@@ -15,7 +15,7 @@ body {
 
 
 /* Container Layout */
-.container {
+.container.dashboard-mode {
   display: flex;
 }
 
@@ -144,7 +144,38 @@ body, html {
   min-height: 100vh;
 }
 
-.container {
-  flex: 1; /* Let it grow to fill space */
+/* create report page style */
+.container.create-bg { 
+  flex: 1; 
   display: flex;
+  padding: 60px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: blanchedalmond;
+}
+
+/* download report page style */
+.container.download-bg{
+ flex: 1; 
+  display: flex;
+  padding: 60px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: rgb(141, 85, 194);
+}
+
+/* view report page style */
+.container.view-bg{
+ flex: 1; 
+  display: flex;
+  padding: 60px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color:rgb(25, 162, 116);
 }

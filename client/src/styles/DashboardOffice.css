@@ -18,7 +18,7 @@
 
 
   
-  .container {
+  .container.dashboard-mode {
     display: flex;
     height: calc(100vh - 100px);
   }
@@ -140,4 +140,25 @@
   .container .right-panel img{
     width: 10rem;
     padding-top: 20px;
+  }
+
+
+  /*view reports page styling*/
+  .container.view-bg{
+    padding: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex:1;
+    background-color:azure;
+  }
+
+  /*download reports page styling*/
+  .container.download-bg{
+    padding: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex:1;
+    background-color:beige;
   }
