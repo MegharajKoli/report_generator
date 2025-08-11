@@ -14,6 +14,10 @@ import ViewReport from "./components/department/ViewReport";
 
 import DownloadReport from "./components/office/DownloadReport";
 import ViewReports from "./components/office/ViewReports";
+import EditReport from "./components/department/EditReport";
+
+
+
 
 function App() {
   return (
@@ -40,6 +44,7 @@ function App() {
           <Route path="create-report" element={<CreateReport />} />
           <Route path="view-report" element={<ViewReport />} />
           <Route path="download-report" element={<DownloadAnnualReport />} />
+          <Route path="edit-report/:reportId" element={<EditReport />} />
         </Route>
 
         {/* Office Dashboard (Parent) */}
@@ -56,7 +61,10 @@ function App() {
           
           <Route path="view-reports" element={<ViewReports />} />
           <Route path="download-reports" element={<DownloadReport />} />
+          
+
         </Route>
+       
       </Routes>
     </Router>
   );

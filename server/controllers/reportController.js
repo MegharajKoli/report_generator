@@ -163,6 +163,8 @@ const createReport = async (req, res) => {
   }
 };
 
+
+
 const getReports = async (req, res) => {
  console.log('Received GET /api/reports', { reportId: req.query.reportId });
   try {
@@ -239,5 +241,135 @@ const getReports = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+const getReportsByDepartment = async (req, res) => {
+  try {
+    const department = req.user.department;
+     console.log("User department:", department); 
 
-module.exports = { createReport, getReports };
+    const reports = await Report.find({ department })
+    
+
+      .select("eventName academicYear organizedBy createdAt") // only necessary fields
+      .sort({ createdAt: -1 });
+       console.log("Found reports:", reports.length);
+
+    res.status(200).json(reports);
+  } catch (error) {
+    console.error("Error fetching department reports:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+// DELETE /api/reports/:id
+const deleteReport = async (req, res) => {
+  try {
+    const reportId = req.params.id;
+
+    if (!mongoose.isValidObjectId(reportId)) {
+      return res.status(400).json({ message: "Invalid report ID" });
+    }
+
+    const deletedReport = await Report.findOneAndDelete({
+      _id: reportId,
+      createdBy: req.user.userId, // Optional: enforce only creator can delete
+    });
+
+    if (!deletedReport) {
+      return res.status(404).json({ message: "Report not found or unauthorized" });
+    }
+
+    res.status(200).json({ message: "Report deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting report:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+//Update reports
+const updateReport = async (req, res) => {
+  const reportId = req.params.id;
+
+  try {
+    const existingReport = await Report.findOne({
+      _id: reportId,
+      createdBy: req.user.userId,
+    });
+
+    if (!existingReport) {
+      return res.status(404).json({ message: "Report not found or unauthorized" });
+    }
+
+    const {
+      academicYear,
+      organizedBy,
+      eventName,
+      tenure,
+      date,
+      timeFrom,
+      timeTo,
+      venue,
+      objectives,
+      outcomes,
+      totalParticipants,
+      femaleParticipants,
+      maleParticipants,
+      eventType,
+      summary,
+      speakers,
+      feedback,
+    } = req.body;
+
+    // Parse JSON arrays safely
+    existingReport.academicYear = academicYear;
+    existingReport.organizedBy = organizedBy;
+    existingReport.eventName = eventName;
+    existingReport.tenure = tenure;
+    existingReport.date = date;
+    existingReport.timeFrom = timeFrom;
+    existingReport.timeTo = timeTo;
+    existingReport.venue = venue;
+    existingReport.objectives = JSON.parse(objectives || "[]");
+    existingReport.outcomes = JSON.parse(outcomes || "[]");
+    existingReport.totalParticipants = totalParticipants;
+    existingReport.femaleParticipants = femaleParticipants;
+    existingReport.maleParticipants = maleParticipants;
+    existingReport.eventType = eventType;
+    existingReport.summary = summary;
+    existingReport.speakers = speakers ? JSON.parse(speakers) : [];
+    existingReport.feedback = feedback ? JSON.parse(feedback) : [];
+
+    // Handle optional file updates
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const { fieldname, buffer } = file;
+        if (fieldname === "poster") {
+          existingReport.poster = buffer;
+        } else if (fieldname === "permissionImage") {
+          existingReport.permissionImage = buffer;
+        } else if (fieldname === "attendance" || fieldname === "attendance[]") {
+          existingReport.attendance.push(buffer); // append new
+        } else if (fieldname === "photographs" || fieldname === "photographs[]") {
+          existingReport.photographs.push(buffer); // append new
+        }
+        // OPTIONAL: feedback analytics files (feedbackAnalytics-0, feedbackAnalytics-1, etc.)
+        else if (fieldname.startsWith('feedbackAnalytics-')) {
+          const idx = parseInt(fieldname.split('-')[1], 10);
+          if (!isNaN(idx) && existingReport.feedback[idx]) {
+            existingReport.feedback[idx].analytics = buffer;
+          }
+        }
+      }
+    }
+
+    await existingReport.save();
+    res.status(200).json({ message: "Report updated successfully" });
+  } catch (error) {
+    console.error("Error updating report:", error.message);
+    res.status(500).json({ message: "Server error while updating report" });
+  
+}};
+
+
+
+
+module.exports = { createReport, getReports,getReportsByDepartment,deleteReport ,updateReport};

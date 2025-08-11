@@ -1,9 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { createReport, getReports } = require('../controllers/reportController');
+const {
+  createReport,
+  getReports,             // For viewing 1 report by ID (?reportId=...)
+  getReportsByDepartment ,
+  deleteReport,
+  updateReport
+} = require('../controllers/reportController');
+
 const authMiddleware = require('../middleware/authMiddleware');
 const multer = require('multer');
 
+// Setup multer
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
@@ -17,37 +25,32 @@ const upload = multer({
   }
 });
 
-// Temporary: Use upload.any() to debug field names
+// ========== ROUTES ==========
+
+// ✅ Create a new report with file uploads
 router.post('/create', authMiddleware, upload.any(), (req, res, next) => {
-  console.log('Multer processed files:', req.files ? req.files.map(file => ({
+  console.log('Multer processed files:', req.files?.map(file => ({
     fieldname: file.fieldname,
     originalname: file.originalname,
     mimetype: file.mimetype,
-    size: file.size
-  })) : 'No files');
+    size: file.size,
+  })) || 'No files');
   next();
 }, createReport);
 
-// Revert to this once field names are confirmed
-/*
-router.post(
-  '/create',
-  authMiddleware,
-  upload.fields([
-    { name: 'poster', maxCount: 1 },
-    { name: 'attendance[]', maxCount: 10 },
-    { name: 'photographs[]', maxCount: 10 },
-    { name: 'permissionImage', maxCount: 1 },
-    { name: 'feedbackAnalytics-0', maxCount: 1 },
-    { name: 'feedbackAnalytics-1', maxCount: 1 },
-    { name: 'feedbackAnalytics-2', maxCount: 1 },
-    { name: 'feedbackAnalytics-3', maxCount: 1 },
-    { name: 'feedbackAnalytics-4', maxCount: 1 },
-  ]),
-  createReport
-);
-*/
-
+// ✅ Get a specific report by ID (detailed view)
 router.get('/', authMiddleware, getReports);
+
+// ✅ NEW: Get all reports for logged-in user's department
+router.get('/department', authMiddleware, getReportsByDepartment);
+//Delete Report
+router.delete("/:id", authMiddleware, deleteReport);
+
+//Update Report
+// PUT: Update a report by ID
+router.put("/:id", authMiddleware, upload.any(), updateReport);
+
+
+
 
 module.exports = router;

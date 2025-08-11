@@ -1,3 +1,15 @@
+.create-report, .create-report label, .create-report input, .create-report textarea, .create-report select, .create-report button, .create-report h2 {
+  color: black !important;
+}
+
+.create-report input, .create-report textarea, .create-report select {
+  border-color: black !important;
+}
+
+.create-report .form-group label {
+  color: black !important;
+}
+
 .create-report {
   max-width: 800px;
   margin: 0 auto;
@@ -40,6 +52,8 @@
   border: 1px solid #ccc;
   border-radius: 4px;
   box-sizing: border-box;
+  color: black; /* 👈 Add this line */
+  background-color: white;
 }
 
 .form-group input[type="file"] {
