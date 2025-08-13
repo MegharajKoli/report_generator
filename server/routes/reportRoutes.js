@@ -5,7 +5,8 @@ const {
   getReports,             // For viewing 1 report by ID (?reportId=...)
   getReportsByDepartment ,
   deleteReport,
-  updateReport
+  updateReport,
+  getAllReports
 } = require('../controllers/reportController');
 
 const authMiddleware = require('../middleware/authMiddleware');
@@ -49,6 +50,8 @@ router.delete("/:id", authMiddleware, deleteReport);
 //Update Report
 // PUT: Update a report by ID
 router.put("/:id", authMiddleware, upload.any(), updateReport);
+
+router.get("/all", authMiddleware, getAllReports);
 
 
 

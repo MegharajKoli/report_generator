@@ -11,7 +11,7 @@ function EditReport() {
   const { user } = useContext(AuthContext) || {};
   const { reportId } = useParams();
   const navigate = useNavigate();
-
+  
   const [formData, setFormData] = useState({
     department: user?.department || "",
     academicYear: "2024-25",
@@ -39,7 +39,8 @@ function EditReport() {
 
   const [previews, setPreviews] = useState({});
   const [existingFiles, setExistingFiles] = useState({});
-
+  const [removePoster, setRemovePoster] = useState(false);
+  const [removePermissionImage, setRemovePermissionImage] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,7 +54,6 @@ function EditReport() {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = res.data;
-
         setFormData({
           department: data.department || "",
           academicYear: data.academicYear || "2024-25",
@@ -82,7 +82,6 @@ function EditReport() {
             : [emptyFeedback],
           photographs: [],
         });
-
         setExistingFiles({
           poster: data.poster || null,
           permissionImage: data.permissionImage || null,
@@ -110,6 +109,8 @@ function EditReport() {
       setFormData(prev => ({ ...prev, [field]: file }));
       setPreviews(prev => ({ ...prev, [field]: URL.createObjectURL(file) }));
       setExistingFiles(prev => ({ ...prev, [field]: null }));
+      if(field === "poster") setRemovePoster(false);
+      if(field === "permissionImage") setRemovePermissionImage(false);
     } else {
       setError(`Invalid file type for ${field}. Please select JPEG or PNG.`);
     }
@@ -126,7 +127,24 @@ function EditReport() {
       ...prev,
       [field]: [...(prev[field] || []), ...validFiles.map(f => URL.createObjectURL(f))],
     }));
-    setExistingFiles(prev => ({ ...prev, [field]: [] }));
+  };
+
+  const removePreviewImage = (field, index, isExisting = false) => {
+    if (isExisting) {
+      setExistingFiles(prev => ({
+        ...prev,
+        [field]: prev[field].filter((_, idx) => idx !== index)
+      }));
+    } else {
+      setPreviews(prev => ({
+        ...prev,
+        [field]: prev[field].filter((_, idx) => idx !== index)
+      }));
+      setFormData(prev => ({
+        ...prev,
+        [field]: prev[field].filter((_, idx) => idx !== index)
+      }));
+    }
   };
 
   const handleDynamicChange = (e, idx, field, subField = undefined) => {
@@ -190,15 +208,7 @@ function EditReport() {
   };
 
   const validateForm = () => {
-    if (
-      !formData.eventName ||
-      !formData.venue ||
-      !formData.totalParticipants ||
-      !formData.organizedBy ||
-      !formData.date ||
-      !formData.timeFrom ||
-      !formData.timeTo
-    ) {
+    if (!formData.eventName || !formData.venue || !formData.totalParticipants || !formData.organizedBy || !formData.date || !formData.timeFrom || !formData.timeTo) {
       setError("Missing required fields. Please fill: Event Name, Venue, Organized By, Total Participants, Date, Time.");
       return false;
     }
@@ -213,18 +223,15 @@ function EditReport() {
     setIsSubmitting(true);
 
     const submissionData = new FormData();
+
     try {
       Object.keys(formData).forEach(key => {
         if (key === "poster" || key === "permissionImage") {
-          if (formData[key] instanceof File) {
-            submissionData.append(key, formData[key]);
-          }
+          if (formData[key] instanceof File) submissionData.append(key, formData[key]);
         } else if (["attendance", "photographs"].includes(key)) {
           Array.isArray(formData[key]) &&
             formData[key].forEach(file => {
-              if (file instanceof File) {
-                submissionData.append(key, file);
-              }
+              if (file instanceof File) submissionData.append(key, file);
             });
         } else if (key === "feedback") {
           const feedbackWithAnalytics = formData.feedback.map((item, idx) => ({
@@ -233,9 +240,7 @@ function EditReport() {
           }));
           submissionData.append("feedback", JSON.stringify(feedbackWithAnalytics));
           formData.feedback.forEach((item, idx) => {
-            if (item.analytics instanceof File) {
-              submissionData.append(`feedbackAnalytics-${idx}`, item.analytics);
-            }
+            if (item.analytics instanceof File) submissionData.append(`feedbackAnalytics-${idx}`, item.analytics);
           });
         } else if (Array.isArray(formData[key])) {
           submissionData.append(key, JSON.stringify(formData[key]));
@@ -243,6 +248,24 @@ function EditReport() {
           submissionData.append(key, formData[key] || "");
         }
       });
+
+      // Append removal flags
+      submissionData.append('removePoster', removePoster);
+      submissionData.append('removePermissionImage', removePermissionImage);
+
+      // Append existing attendance base64 strings
+      if (existingFiles.attendance && existingFiles.attendance.length > 0) {
+        existingFiles.attendance.forEach(img => {
+          if (img) submissionData.append('attendanceBase64', img);
+        });
+      }
+
+      // Append existing photographs base64 strings
+      if (existingFiles.photographs && existingFiles.photographs.length > 0) {
+        existingFiles.photographs.forEach(img => {
+          if (img) submissionData.append('photographsBase64', img);
+        });
+      }
 
       const token = localStorage.getItem("token");
       await axios.put(
@@ -264,302 +287,231 @@ function EditReport() {
     }
   };
 
-  // CSS styles for fixed height, consistent image preview
-  const imgPreviewStyle = {
-    height: 80,
-    width: "auto",
-    objectFit: "contain",
-    border: "1px solid #aaa",
-    marginRight: 8,
-  };
+  // Image preview styles
+  const imgPreviewStyle = { height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa", marginRight: 8 };
+  const imageContainerStyle = { position: "relative", display: "inline-block", marginRight: 8, marginBottom: 8 };
+  const removeButtonStyle = { position: "absolute", top: "-8px", right: "-8px", background: "red", color: "white", border: "none", borderRadius: "50%", width: "20px", height: "20px", fontSize: "12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" };
 
-  return (
-    <div className="reportcreate">
-      <div className="create-report">
-        <h2>Edit Report for {formData.department || "Department"}</h2>
-        {error && <div className="error" style={{ color: "red", fontSize: 14, marginBottom: 10 }}>{error}</div>}
-        {success && <div className="success" style={{ color: "green", fontSize: 14, marginBottom: 10 }}>{success}</div>}
-        <form onSubmit={handleSubmit}>
+ 
 
-          <div className="form-group">
-            <label>Department</label>
-            <input type="text" value={formData.department} disabled style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+
+ return (
+  <div className="reportcreate">
+    <div className="create-report">
+      <h2>Edit Report for {formData.department || "Department"}</h2>
+      {error && <div className="error" style={{ color: "red", fontSize: 14, marginBottom: 10 }}>{error}</div>}
+      {success && <div className="success" style={{ color: "green", fontSize: 14, marginBottom: 10 }}>{success}</div>}
+      
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>Department</label>
+          <input type="text" value={formData.department} disabled style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+        </div>
+        
+        <div className="form-group">
+          <label>Academic Year *</label>
+          <select name="academicYear" value={formData.academicYear} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
+            <option value="2024-25">2024-25</option>
+            <option value="2025-26">2025-26</option>
+            <option value="2026-27">2026-27</option>
+          </select>
+        </div>
+        
+        <div className="form-group">
+          <label>Organized By *</label>
+          <input type="text" name="organizedBy" value={formData.organizedBy} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+        </div>
+        
+        <div className="form-group">
+          <label>Event Name *</label>
+          <input type="text" name="eventName" value={formData.eventName} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+        </div>
+        
+        <div className="form-group">
+          <label>Tenure *</label>
+          <select name="tenure" value={formData.tenure} onChange={handleChange} style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
+            <option value="1 Day">1 Day</option>
+            <option value="Multiple Days">Multiple Days</option>
+          </select>
+        </div>
+        
+        <div className="form-group">
+          <label>Date *</label>
+          <input type="date" name="date" value={formData.date} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+        </div>
+        
+        <div className="form-group">
+          <label>Time *</label>
+          <div className="time-range">
+            <input type="time" name="timeFrom" value={formData.timeFrom} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12, marginRight: 8 }} />
+            <input type="time" name="timeTo" value={formData.timeTo} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
           </div>
-
-          <div className="form-group">
-            <label>Academic Year *</label>
-            <select name="academicYear" value={formData.academicYear} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              <option value="2024-25">2024-25</option>
-              <option value="2025-26">2025-26</option>
-              <option value="2026-27">2026-27</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Organized By *</label>
-            <input type="text" name="organizedBy" value={formData.organizedBy} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          <div className="form-group">
-            <label>Event Name *</label>
-            <input type="text" name="eventName" value={formData.eventName} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          <div className="form-group">
-            <label>Tenure *</label>
-            <select name="tenure" value={formData.tenure} onChange={handleChange} style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              <option value="1 Day">1 Day</option>
-              <option value="Multiple Days">Multiple Days</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Date *</label>
-            <input type="date" name="date" value={formData.date} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          <div className="form-group">
-            <label>Time *</label>
-            <div className="time-range">
-              <input type="time" name="timeFrom" value={formData.timeFrom} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12, marginRight: 8 }} />
-              <input type="time" name="timeTo" value={formData.timeTo} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+        </div>
+        
+        <div className="form-group">
+          <label>Venue *</label>
+          <input type="text" name="venue" value={formData.venue} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+        </div>
+        
+        {/* Poster */}
+        <div className="form-group">
+          <label>Poster</label>
+          {(previews.poster || existingFiles.poster) && (
+            <div>
+              <img src={previews.poster || existingFiles.poster} alt="Poster Preview" style={{ maxWidth: 200, maxHeight: 120, marginBottom: 8, border: "1px solid #aaa" }} />
+              <button type="button" onClick={() => removePreviewImage("poster", 0, true)}>Remove</button>
             </div>
-          </div>
-
-          <div className="form-group">
-            <label>Venue *</label>
-            <input type="text" name="venue" value={formData.venue} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          {/* Poster preview */}
-          <div className="form-group">
-            <label>Poster</label>
-            {(previews.poster || existingFiles.poster) && (
-              <div>
-                <img src={previews.poster || existingFiles.poster} alt="Poster Preview" style={{ maxWidth: 200, maxHeight: 120, marginBottom: 8, border: "1px solid #aaa" }} />
-                <button type="button" onClick={() => {
-                  setFormData(prev => ({ ...prev, poster: null }));
-                  setPreviews(prev => ({ ...prev, poster: null }));
-                  setExistingFiles(prev => ({ ...prev, poster: null }));
-                }}>
-                  Remove
-                </button>
-              </div>
-            )}
-            <input type="file" accept="image/jpeg,image/png" onChange={e => handleSingleFileChange(e, "poster")} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          {/* Speakers */}
-          <div className="form-group">
-            <label>Speakers</label>
-            {formData.speakers.map((speaker, idx) => (
-              <div key={idx} className="dynamic-field">
-                <input
-                  type="text"
-                  value={speaker.name || ""}
-                  onChange={e => handleDynamicChange(e, idx, "speakers", "name")}
-                  placeholder="Speaker name"
-                  style={{ fontFamily: "Times New Roman", fontSize: 12 }}
-                />
-                <textarea
-                  value={speaker.background || ""}
-                  onChange={e => handleDynamicChange(e, idx, "speakers", "background")}
-                  placeholder="Speaker background"
-                  rows={3}
-                  style={{ fontFamily: "Times New Roman", fontSize: 12 }}
-                />
-                {formData.speakers.length > 1 && (
-                  <button type="button" onClick={() => removeDynamicField(idx, "speakers")} className="remove-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-            <button type="button" onClick={() => addDynamicField("speakers")} className="add-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              Add Speaker
-            </button>
-          </div>
-
-          {/* Objectives */}
-          <div className="form-group">
-            <label>Objectives</label>
-            {formData.objectives.map((objective, idx) => (
-              <div key={idx} className="dynamic-field">
-                <textarea
-                  value={objective || ""}
-                  onChange={e => handleDynamicChange(e, idx, "objectives")}
-                  placeholder={`Objective ${idx + 1}`}
-                  rows={3}
-                  style={{ fontFamily: "Times New Roman", fontSize: 12 }}
-                />
-                {formData.objectives.length > 1 && (
-                  <button type="button" onClick={() => removeDynamicField(idx, "objectives")} className="remove-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-            <button type="button" onClick={() => addDynamicField("objectives")} className="add-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              Add
-            </button>
-          </div>
-
-          {/* Outcomes */}
-          <div className="form-group">
-            <label>Outcomes</label>
-            {formData.outcomes.map((outcome, idx) => (
-              <div key={idx} className="dynamic-field">
-                <textarea
-                  value={outcome || ""}
-                  onChange={e => handleDynamicChange(e, idx, "outcomes")}
-                  placeholder={`Outcome ${idx + 1}`}
-                  rows={3}
-                  style={{ fontFamily: "Times New Roman", fontSize: 12 }}
-                />
-                {formData.outcomes.length > 1 && (
-                  <button type="button" onClick={() => removeDynamicField(idx, "outcomes")} className="remove-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-            <button type="button" onClick={() => addDynamicField("outcomes")} className="add-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              Add
-            </button>
-          </div>
-
-          <div className="form-group">
-            <label>Total Participants *</label>
-            <input type="number" name="totalParticipants" value={formData.totalParticipants} onChange={handleChange} required min="0" style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          <div className="form-group">
-            <label>Female Participants</label>
-            <input type="number" name="femaleParticipants" value={formData.femaleParticipants} onChange={handleChange} min="0" style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          <div className="form-group">
-            <label>Male Participants</label>
-            <input type="number" name="maleParticipants" value={formData.maleParticipants} onChange={handleChange} min="0" style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          <div className="form-group">
-            <label>Event Type</label>
-            <select name="eventType" value={formData.eventType} onChange={handleChange} style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              <option value="Session">Session</option>
-              <option value="Workshop">Workshop</option>
-              <option value="Bootcamp">Bootcamp</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>{formData.eventType || "Event"} Summary</label>
-            <textarea name="summary" value={formData.summary} onChange={handleChange} rows={5} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          {/* Attendance Images */}
-          <div className="form-group">
-            <label>Attendance Images</label>
-            <input type="file" accept="image/jpeg,image/png" multiple name="attendance[]" onChange={e => handleMultipleFileChange(e, "attendance")} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-              {(previews.attendance || []).map((url, idx) => (
-                <img key={`preview-attendance-${idx}`} src={url} alt={`Attendance Preview ${idx + 1}`} style={imgPreviewStyle} />
-              ))}
-              {(existingFiles.attendance || []).map((url, idx) => (
-                <img key={`existing-attendance-${idx}`} src={url} alt={`Existing Attendance ${idx + 1}`} style={imgPreviewStyle} />
-              ))}
+          )}
+          <input type="file" accept="image/jpeg,image/png" onChange={e => handleSingleFileChange(e, "poster")} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+        </div>
+        
+        {/* Speakers */}
+        <div className="form-group">
+          <label>Speakers</label>
+          {formData.speakers.map((speaker, idx) => (
+            <div key={idx} className="dynamic-field">
+              <input type="text" value={speaker.name || ""} onChange={e => handleDynamicChange(e, idx, "speakers", "name")} placeholder="Speaker name" style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+              <textarea value={speaker.background || ""} onChange={e => handleDynamicChange(e, idx, "speakers", "background")} placeholder="Speaker background" rows={3} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+              {formData.speakers.length > 1 && (
+                <button type="button" onClick={() => removeDynamicField(idx, "speakers")} className="remove-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>Remove</button>
+              )}
             </div>
-          </div>
-
-          {/* Permission Image */}
-          <div className="form-group">
-            <label>Permission Image</label>
-            {(previews.permissionImage || existingFiles.permissionImage) && (
-              <div>
-                <img src={previews.permissionImage || existingFiles.permissionImage} alt="Permission Preview" style={{ maxWidth: 200, maxHeight: 120, marginBottom: 8, border: "1px solid #aaa" }} />
-                <button type="button" onClick={() => {
-                  setFormData(prev => ({ ...prev, permissionImage: null }));
-                  setPreviews(prev => ({ ...prev, permissionImage: null }));
-                  setExistingFiles(prev => ({ ...prev, permissionImage: null }));
-                }}>Remove</button>
-              </div>
-            )}
-            <input type="file" accept="image/jpeg,image/png" onChange={e => handleSingleFileChange(e, "permissionImage")} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          {/* Feedback */}
-          <div className="form-group">
-            <label>Feedback</label>
-            {formData.feedback.map((item, idx) => (
-              <div key={idx} className="feedback-item" style={{ marginBottom: 12 }}>
-                <input
-                  type="text"
-                  value={item.question || ""}
-                  onChange={e => handleDynamicChange(e, idx, "feedback", "question")}
-                  placeholder={`Question ${idx + 1}`}
-                  style={{ fontFamily: "Times New Roman", fontSize: 12, marginBottom: 4, width: "100%" }}
-                />
-                <textarea
-                  value={item.answer || ""}
-                  onChange={e => handleDynamicChange(e, idx, "feedback", "answer")}
-                  placeholder="Answer/Review"
-                  rows={3}
-                  style={{ fontFamily: "Times New Roman", fontSize: 12, marginBottom: 4, width: "100%" }}
-                />
-                {(previews[`feedback-${idx}`] || (Array.isArray(existingFiles.feedback) && existingFiles.feedback[idx])) && (
-                  <img
-                    src={previews[`feedback-${idx}`] || existingFiles.feedback[idx]}
-                    alt={`Feedback Analytics Preview ${idx + 1}`}
-                    style={{ ...imgPreviewStyle, marginBottom: 4 }}
-                  />
-                )}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  name={`feedbackAnalytics-${idx}`}
-                  onChange={e => handleFeedbackAnalytics(e, idx)}
-                  style={{ fontFamily: "Times New Roman", fontSize: 12, marginBottom: 4 }}
-                />
-                {formData.feedback.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeDynamicField(idx, "feedback")}
-                    className="remove-btn"
-                    style={{ fontFamily: "Times New Roman", fontSize: 12 }}
-                  >
-                    Remove
-                  </button>
-                )}
+          ))}
+          <button type="button" onClick={() => addDynamicField("speakers")} className="add-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>Add Speaker</button>
+        </div>
+        
+        {/* Objectives */}
+        <div className="form-group">
+          <label>Objectives</label>
+          {formData.objectives.map((obj, idx) => (
+            <div key={idx} className="dynamic-field">
+              <textarea value={obj || ""} onChange={e => handleDynamicChange(e, idx, "objectives")} placeholder={`Objective ${idx + 1}`} rows={3} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+              {formData.objectives.length > 1 && <button type="button" onClick={() => removeDynamicField(idx, "objectives")} className="remove-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>Remove</button>}
+            </div>
+          ))}
+          <button type="button" onClick={() => addDynamicField("objectives")} className="add-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>Add</button>
+        </div>
+        
+        {/* Outcomes */}
+        <div className="form-group">
+          <label>Outcomes</label>
+          {formData.outcomes.map((out, idx) => (
+            <div key={idx} className="dynamic-field">
+              <textarea value={out || ""} onChange={e => handleDynamicChange(e, idx, "outcomes")} placeholder={`Outcome ${idx + 1}`} rows={3} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+              {formData.outcomes.length > 1 && <button type="button" onClick={() => removeDynamicField(idx, "outcomes")} className="remove-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>Remove</button>}
+            </div>
+          ))}
+          <button type="button" onClick={() => addDynamicField("outcomes")} className="add-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>Add</button>
+        </div>
+        
+        <div className="form-group">
+          <label>Total Participants *</label>
+          <input type="number" name="totalParticipants" value={formData.totalParticipants} onChange={handleChange} required min="0" style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+        </div>
+        
+        <div className="form-group">
+          <label>Female Participants</label>
+          <input type="number" name="femaleParticipants" value={formData.femaleParticipants} onChange={handleChange} min="0" style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+        </div>
+        
+        <div className="form-group">
+          <label>Male Participants</label>
+          <input type="number" name="maleParticipants" value={formData.maleParticipants} onChange={handleChange} min="0" style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+        </div>
+        
+        <div className="form-group">
+          <label>Event Type</label>
+          <select name="eventType" value={formData.eventType} onChange={handleChange} style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
+            <option value="Session">Session</option>
+            <option value="Workshop">Workshop</option>
+            <option value="Bootcamp">Bootcamp</option>
+          </select>
+        </div>
+        
+        <div className="form-group">
+          <label>{formData.eventType || "Event"} Summary</label>
+          <textarea name="summary" value={formData.summary} onChange={handleChange} rows={5} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+        </div>
+        
+        {/* Attendance */}
+        <div className="form-group">
+          <label>Attendance Images</label>
+          <input type="file" accept="image/jpeg,image/png" multiple name="attendance[]" onChange={e => handleMultipleFileChange(e, "attendance")} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+            {(previews.attendance || []).map((url, idx) => (
+              <div key={`preview-attendance-${idx}`} style={imageContainerStyle}>
+                <img src={url} alt={`Attendance Preview ${idx + 1}`} style={imgPreviewStyle} />
+                <button type="button" style={removeButtonStyle} onClick={() => removePreviewImage("attendance", idx, false)}>×</button>
               </div>
             ))}
-            <button type="button" onClick={() => addDynamicField("feedback")} className="add-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              Add Feedback
-            </button>
+            {(existingFiles.attendance || []).map((url, idx) => (
+              <div key={`existing-attendance-${idx}`} style={imageContainerStyle}>
+                <img src={url} alt={`Existing Attendance ${idx + 1}`} style={imgPreviewStyle} />
+                <button type="button" style={removeButtonStyle} onClick={() => removePreviewImage("attendance", idx, true)}>×</button>
+              </div>
+            ))}
           </div>
-
-          {/* Photographs */}
-          <div className="form-group">
-            <label>Photographs</label>
-            <input type="file" accept="image/jpeg,image/png" multiple name="photographs[]" onChange={e => handleMultipleFileChange(e, "photographs")} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-              {(previews.photographs || []).map((url, idx) => (
-                <img key={`preview-photo-${idx}`} src={url} alt={`Photo Preview ${idx + 1}`} style={imgPreviewStyle} />
-              ))}
-              {(existingFiles.photographs || []).map((url, idx) => (
-                <img key={`existing-photo-${idx}`} src={url} alt={`Existing Photograph ${idx + 1}`} style={imgPreviewStyle} />
-              ))}
+        </div>
+        
+        {/* Permission Image */}
+        <div className="form-group">
+          <label>Permission Image</label>
+          {(previews.permissionImage || existingFiles.permissionImage) && (
+            <div>
+              <img src={previews.permissionImage || existingFiles.permissionImage} alt="Permission Preview" style={{ maxWidth: 200, maxHeight: 120, marginBottom: 8, border: "1px solid #aaa" }} />
+              <button type="button" onClick={() => removePreviewImage("permissionImage", 0, true)}>Remove</button>
             </div>
+          )}
+          <input type="file" accept="image/jpeg,image/png" onChange={e => handleSingleFileChange(e, "permissionImage")} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+        </div>
+        
+        {/* Feedback */}
+        <div className="form-group">
+          <label>Feedback</label>
+          {formData.feedback.map((item, idx) => (
+            <div key={idx} className="feedback-item" style={{ marginBottom: 12 }}>
+              <input type="text" value={item.question || ""} onChange={e => handleDynamicChange(e, idx, "feedback", "question")} placeholder={`Question ${idx + 1}`} style={{ fontFamily: "Times New Roman", fontSize: 12, marginBottom: 4, width: "100%" }} />
+              <textarea value={item.answer || ""} onChange={e => handleDynamicChange(e, idx, "feedback", "answer")} placeholder="Answer/Review" rows={3} style={{ fontFamily: "Times New Roman", fontSize: 12, marginBottom: 4, width: "100%" }} />
+              {(previews[`feedback-${idx}`] || (Array.isArray(existingFiles.feedback) && existingFiles.feedback[idx])) && (
+                <img src={previews[`feedback-${idx}`] || existingFiles.feedback[idx]} alt={`Feedback Analytics Preview ${idx + 1}`} style={{ ...imgPreviewStyle, marginBottom: 4 }} />
+              )}
+              <input type="file" accept="image/jpeg,image/png" name={`feedbackAnalytics-${idx}`} onChange={e => handleFeedbackAnalytics(e, idx)} style={{ fontFamily: "Times New Roman", fontSize: 12, marginBottom: 4 }} />
+              {formData.feedback.length > 1 && <button type="button" onClick={() => removeDynamicField(idx, "feedback")} className="remove-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>Remove</button>}
+            </div>
+          ))}
+          <button type="button" onClick={() => addDynamicField("feedback")} className="add-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>Add Feedback</button>
+        </div>
+        
+        {/* Photographs */}
+        <div className="form-group">
+          <label>Photographs</label>
+          <input type="file" accept="image/jpeg,image/png" multiple name="photographs[]" onChange={e => handleMultipleFileChange(e, "photographs")} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+            {(previews.photographs || []).map((url, idx) => (
+              <div key={`preview-photo-${idx}`} style={imageContainerStyle}>
+                <img src={url} alt={`Photo Preview ${idx + 1}`} style={imgPreviewStyle} />
+                <button type="button" style={removeButtonStyle} onClick={() => removePreviewImage("photographs", idx, false)}>×</button>
+              </div>
+            ))}
+            {(existingFiles.photographs || []).map((url, idx) => (
+              <div key={`existing-photo-${idx}`} style={imageContainerStyle}>
+                <img src={url} alt={`Existing Photograph ${idx + 1}`} style={imgPreviewStyle} />
+                <button type="button" style={removeButtonStyle} onClick={() => removePreviewImage("photographs", idx, true)}>×</button>
+              </div>
+            ))}
           </div>
-
-          <div className="button-group" style={{ marginTop: 20 }}>
-            <button type="submit" className="submit-btn" disabled={isSubmitting} style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              {isSubmitting ? "Saving..." : "Update Report"}
-            </button>
-          </div>
-        </form>
-      </div>
+        </div>
+        
+        <div className="button-group" style={{ marginTop: 20 }}>
+          <button type="submit" className="submit-btn" disabled={isSubmitting} style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
+            {isSubmitting ? "Saving..." : "Update Report"}
+          </button>
+        </div>
+      </form>
     </div>
-  );
+  </div>
+);
+
 }
 
 export default EditReport;
