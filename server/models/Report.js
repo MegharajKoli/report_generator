@@ -15,21 +15,24 @@ const reportSchema = new mongoose.Schema({
   poster: { type: Buffer },
   objectives: [{ type: String }],
   outcomes: [{ type: String }],
+  studentCoordinators: [{ type: String }],
+  facultyCoordinators: [{ type: String }],
   totalParticipants: { type: Number, required: true },
   femaleParticipants: { type: Number },
   maleParticipants: { type: Number },
-  eventType: { type: String, enum: ['Session', 'Workshop', 'Bootcamp'], required: true },
+  eventType: { type: String, enum: ['Session', 'Workshop', 'Bootcamp', 'Other'], required: true },
+  customEventType: { type: String, default: '' },
   summary: { type: String },
   attendance: [{ type: Buffer }],
-  permissionImage: { type: Buffer }, // Added
-  speakers: [{ name: String, background: String }], // Added
+  permissionImage: { type: Buffer },
+  speakers: [{ name: String, background: String }],
   feedback: [{
     question: { type: String },
     answer: { type: String },
     analytics: { type: Buffer },
   }],
   photographs: [{ type: Buffer }],
-  createdBy: { type: String, required: true }, // Added
+  createdBy: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
 });
 

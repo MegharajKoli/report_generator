@@ -19,16 +19,21 @@ function EditReport() {
     eventName: "",
     tenure: "1 Day",
     date: "",
+    dateFrom: "",
+    dateTo: "",
     timeFrom: "",
     timeTo: "",
     venue: "",
     poster: null,
     objectives: [""],
     outcomes: [""],
+    studentCoordinators: [""],
+    facultyCoordinators: [""],
     totalParticipants: "",
     femaleParticipants: "",
     maleParticipants: "",
     eventType: "Session",
+    customEventType: "",
     summary: "",
     attendance: [],
     permissionImage: null,
@@ -37,48 +42,72 @@ function EditReport() {
     photographs: [],
   });
 
-  const [previews, setPreviews] = useState({});
-  const [existingFiles, setExistingFiles] = useState({});
-
+  const [previews, setPreviews] = useState({
+    poster: null,
+    permissionImage: null,
+    attendance: [],
+    photographs: [],
+    feedback: [],
+  });
+  const [existingFiles, setExistingFiles] = useState({
+    poster: null,
+    permissionImage: null,
+    attendance: [],
+    photographs: [],
+    feedback: [],
+  });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchReport() {
       try {
+        setIsLoading(true);
         const token = localStorage.getItem("token");
+        if (!token) throw new Error("No authentication token found.");
+        console.log("Fetching report with ID:", reportId);
         const res = await axios.get(
           `http://localhost:3001/api/reports?reportId=${reportId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = res.data;
 
+        if (!data || Object.keys(data).length === 0) {
+          throw new Error("Empty or invalid report data received.");
+        }
+
         setFormData({
-          department: data.department || "",
+          department: data.department?._id || user?.department || "",
           academicYear: data.academicYear || "2024-25",
           organizedBy: data.organizedBy || "",
           eventName: data.eventName || "",
           tenure: data.tenure || "1 Day",
           date: data.date || "",
+          dateFrom: data.dateFrom || "",
+          dateTo: data.dateTo || "",
           timeFrom: data.timeFrom || "",
           timeTo: data.timeTo || "",
           venue: data.venue || "",
           poster: null,
           objectives: Array.isArray(data.objectives) && data.objectives.length ? data.objectives : [""],
           outcomes: Array.isArray(data.outcomes) && data.outcomes.length ? data.outcomes : [""],
+          studentCoordinators: Array.isArray(data.studentCoordinators) && data.studentCoordinators.length ? data.studentCoordinators : [""],
+          facultyCoordinators: Array.isArray(data.facultyCoordinators) && data.facultyCoordinators.length ? data.facultyCoordinators : [""],
           totalParticipants: data.totalParticipants || "",
           femaleParticipants: data.femaleParticipants || "",
           maleParticipants: data.maleParticipants || "",
           eventType: data.eventType || "Session",
+          customEventType: data.customEventType || "",
           summary: data.summary || "",
           attendance: [],
           permissionImage: null,
-          speakers: Array.isArray(data.speakers) && data.speakers.length
-            ? data.speakers
-            : [emptySpeaker],
+          speakers: Array.isArray(data.speakers) && data.speakers.length ? data.speakers : [emptySpeaker],
           feedback: Array.isArray(data.feedback) && data.feedback.length
-            ? data.feedback.map(f => ({ ...emptyFeedback, ...f }))
+            ? data.feedback.map(f => ({ question: f.question || "", answer: f.answer || "", analytics: null }))
             : [emptyFeedback],
           photographs: [],
         });
@@ -86,22 +115,46 @@ function EditReport() {
         setExistingFiles({
           poster: data.poster || null,
           permissionImage: data.permissionImage || null,
-          attendance: data.attendance || [],
-          photographs: data.photographs || [],
-          feedback: (Array.isArray(data.feedback) && data.feedback.length)
-            ? data.feedback.map(f => f.analytics || null)
-            : [],
+          attendance: Array.isArray(data.attendance) ? data.attendance : [],
+          photographs: Array.isArray(data.photographs) ? data.photographs : [],
+          feedback: Array.isArray(data.feedback) ? data.feedback.map(f => f.analytics || null) : [],
+        });
+
+        setPreviews({
+          poster: data.poster || null,
+          permissionImage: data.permissionImage || null,
+          attendance: [],
+          photographs: [],
+          feedback: Array.isArray(data.feedback) ? data.feedback.map(f => f.analytics || null) : [],
+        });
+
+        console.log("Fetched report data:", {
+          reportId,
+          dataKeys: Object.keys(data),
+          poster: !!data.poster,
+          attendanceCount: data.attendance?.length || 0,
+          photographsCount: data.photographs?.length || 0,
+          feedbackCount: data.feedback?.length || 0,
         });
       } catch (err) {
-        setError("Failed to load report data.");
+        console.error("Error fetching report:", err.message, err.response?.data);
+        setError(`Failed to load report data: ${err.response?.data?.error || err.message}`);
+      } finally {
+        setIsLoading(false);
       }
     }
     fetchReport();
-  }, [reportId]);
+  }, [reportId, user]);
 
   const handleChange = e => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const newFormData = { ...formData, [name]: value };
+    if (name === "maleParticipants" || name === "femaleParticipants") {
+      const male = name === "maleParticipants" ? value : formData.maleParticipants;
+      const female = name === "femaleParticipants" ? value : formData.femaleParticipants;
+      newFormData.totalParticipants = (parseInt(male) || 0) + (parseInt(female) || 0);
+    }
+    setFormData(newFormData);
   };
 
   const handleSingleFileChange = (e, field) => {
@@ -110,6 +163,7 @@ function EditReport() {
       setFormData(prev => ({ ...prev, [field]: file }));
       setPreviews(prev => ({ ...prev, [field]: URL.createObjectURL(file) }));
       setExistingFiles(prev => ({ ...prev, [field]: null }));
+      console.log(`Selected ${field}: ${file.name}, size: ${file.size} bytes`);
     } else {
       setError(`Invalid file type for ${field}. Please select JPEG or PNG.`);
     }
@@ -121,96 +175,171 @@ function EditReport() {
     if (validFiles.length !== files.length) {
       setError(`Some files for ${field} are invalid. Only JPEG or PNG allowed.`);
     }
-    setFormData(prev => ({ ...prev, [field]: [...prev[field], ...validFiles] }));
+    setFormData(prev => ({
+      ...prev,
+      [field]: [...prev[field], ...validFiles],
+    }));
     setPreviews(prev => ({
       ...prev,
-      [field]: [...(prev[field] || []), ...validFiles.map(f => URL.createObjectURL(f))],
+      [field]: [...prev[field], ...validFiles.map(f => URL.createObjectURL(f))],
     }));
-    setExistingFiles(prev => ({ ...prev, [field]: [] }));
+    console.log(`Selected ${field}: ${validFiles.map(f => `${f.name} (${f.size} bytes)`).join(", ")}`);
   };
 
-  const handleDynamicChange = (e, idx, field, subField = undefined) => {
-    const updated = [...formData[field]];
-    if (subField) {
-      updated[idx] = { ...updated[idx], [subField]: e.target.value };
-    } else {
-      updated[idx] = e.target.value;
-    }
-    setFormData(prev => ({ ...prev, [field]: updated }));
-  };
-
-  const addDynamicField = field => {
-    const emptyMap = {
-      feedback: { ...emptyFeedback },
-      speakers: { ...emptySpeaker },
-    };
-    setFormData(prev => ({
-      ...prev,
-      [field]: [...prev[field], emptyMap[field] || ""],
-    }));
-    if(field === "feedback") {
-      setExistingFiles(prev => ({
-        ...prev,
-        feedback: [...(prev.feedback || []), null],
-      }));
-    }
-  };
-
-  const removeDynamicField = (idx, field) => {
-    const updated = [...formData[field]];
-    updated.splice(idx, 1);
-    setFormData(prev => ({
-      ...prev,
-      [field]: updated.length ? updated : [field === "speakers" ? { ...emptySpeaker } : field === "feedback" ? { ...emptyFeedback } : ""],
-    }));
-    if(field === "feedback") {
-      setExistingFiles(prev => {
-        const newArr = [...(prev.feedback || [])];
-        newArr.splice(idx, 1);
-        return { ...prev, feedback: newArr };
-      });
-    }
-  };
-
-  const handleFeedbackAnalytics = (e, idx) => {
+  const handleFeedbackAnalytics = (e, index) => {
     const file = e.target.files[0];
     if (file && ["image/jpeg", "image/png"].includes(file.type)) {
-      const newFeedback = [...formData.feedback];
-      newFeedback[idx].analytics = file;
-      setFormData(prev => ({ ...prev, feedback: newFeedback }));
-      setPreviews(prev => ({ ...prev, [`feedback-${idx}`]: URL.createObjectURL(file) }));
-      setExistingFiles(prev => {
-        const arr = Array.isArray(prev.feedback) ? [...prev.feedback] : [];
-        arr[idx] = null;
-        return { ...prev, feedback: arr };
-      });
+      const updatedFeedback = [...formData.feedback];
+      updatedFeedback[index] = { ...updatedFeedback[index], analytics: file };
+      setFormData({ ...formData, feedback: updatedFeedback });
+      setPreviews(prev => ({
+        ...prev,
+        feedback: [
+          ...prev.feedback.slice(0, index),
+          URL.createObjectURL(file),
+          ...prev.feedback.slice(index + 1),
+        ],
+      }));
+      setExistingFiles(prev => ({
+        ...prev,
+        feedback: [
+          ...prev.feedback.slice(0, index),
+          null,
+          ...prev.feedback.slice(index + 1),
+        ],
+      }));
+      console.log(`Selected feedback analytics[${index}]: ${file.name}, size: ${file.size} bytes`);
     } else {
       setError("Invalid file type for feedback analytics. Please select JPEG or PNG.");
     }
   };
 
-  const validateForm = () => {
-    if (
-      !formData.eventName ||
-      !formData.venue ||
-      !formData.totalParticipants ||
-      !formData.organizedBy ||
-      !formData.date ||
-      !formData.timeFrom ||
-      !formData.timeTo
-    ) {
-      setError("Missing required fields. Please fill: Event Name, Venue, Organized By, Total Participants, Date, Time.");
-      return false;
+  const handleDynamicChange = (e, index, field, subField) => {
+    const updatedArray = [...formData[field]];
+    if (subField) {
+      updatedArray[index] = { ...updatedArray[index], [subField]: e.target.value };
+    } else {
+      updatedArray[index] = e.target.value;
     }
-    return true;
+    setFormData({ ...formData, [field]: updatedArray });
+  };
+
+  const addDynamicField = field => {
+    if (field === "feedback") {
+      setFormData({ ...formData, feedback: [...formData.feedback, { ...emptyFeedback }] });
+      setPreviews(prev => ({ ...prev, feedback: [...prev.feedback, null] }));
+      setExistingFiles(prev => ({ ...prev, feedback: [...prev.feedback, null] }));
+    } else if (field === "speakers") {
+      setFormData({ ...formData, speakers: [...formData.speakers, { ...emptySpeaker }] });
+    } else {
+      setFormData({ ...formData, [field]: [...formData[field], ""] });
+    }
+  };
+
+  const removeDynamicField = (index, field) => {
+    const updatedArray = [...formData[field]];
+    updatedArray.splice(index, 1);
+    if (field === "feedback") {
+      const updatedPreviews = [...previews.feedback];
+      updatedPreviews.splice(index, 1);
+      const updatedExistingFiles = [...existingFiles.feedback];
+      updatedExistingFiles.splice(index, 1);
+      setPreviews({ ...previews, feedback: updatedPreviews });
+      setExistingFiles({ ...existingFiles, feedback: updatedExistingFiles });
+    }
+    setFormData({
+      ...formData,
+      [field]: updatedArray.length ? updatedArray : [field === "speakers" ? { ...emptySpeaker } : field === "feedback" ? { ...emptyFeedback } : ""],
+    });
+  };
+
+  const removeFile = (field, index = null, isExisting = false) => {
+    if (field === "poster" || field === "permissionImage") {
+      setFormData(prev => ({ ...prev, [field]: null }));
+      setPreviews(prev => {
+        if (prev[field]) URL.revokeObjectURL(prev[field]);
+        return { ...prev, [field]: null };
+      });
+      setExistingFiles(prev => ({ ...prev, [field]: null }));
+      console.log(`Removed ${field}`);
+    } else if (field === "feedback") {
+      const updatedFeedback = [...formData.feedback];
+      updatedFeedback[index] = { ...updatedFeedback[index], analytics: null };
+      setFormData({ ...formData, feedback: updatedFeedback });
+      setPreviews(prev => {
+        const updatedFeedbackPreviews = [...prev.feedback];
+        if (updatedFeedbackPreviews[index]) URL.revokeObjectURL(updatedFeedbackPreviews[index]);
+        updatedFeedbackPreviews[index] = null;
+        return { ...prev, feedback: updatedFeedbackPreviews };
+      });
+      setExistingFiles(prev => ({
+        ...prev,
+        feedback: [
+          ...prev.feedback.slice(0, index),
+          null,
+          ...prev.feedback.slice(index + 1),
+        ],
+      }));
+      console.log(`Removed feedback analytics[${index}]`);
+    } else {
+      // Handle multiple file fields (attendance, photographs)
+      if (isExisting) {
+        setExistingFiles(prev => {
+          const updatedFiles = [...prev[field]];
+          updatedFiles.splice(index, 1);
+          return { ...prev, [field]: updatedFiles };
+        });
+        console.log(`Removed existing ${field}[${index}]`);
+      } else {
+        // Adjust index for new images, accounting for existingFiles length
+        const adjustedIndex = index - existingFiles[field].length;
+        if (adjustedIndex >= 0 && adjustedIndex < previews[field].length) {
+          setFormData(prev => {
+            const updatedFiles = [...prev[field]];
+            updatedFiles.splice(adjustedIndex, 1);
+            return { ...prev, [field]: updatedFiles };
+          });
+          setPreviews(prev => {
+            const updatedPreviews = [...prev[field]];
+            if (updatedPreviews[adjustedIndex]) URL.revokeObjectURL(updatedPreviews[adjustedIndex]);
+            updatedPreviews.splice(adjustedIndex, 1);
+            return { ...prev, [field]: updatedPreviews };
+          });
+          console.log(`Removed new ${field}[${adjustedIndex}]`);
+        } else {
+          console.warn(`Invalid index ${index} for new ${field} removal`);
+        }
+      }
+    }
   };
 
   const handleSubmit = async e => {
     e.preventDefault();
+    setIsSubmitting(true);
     setError("");
     setSuccess("");
-    if (!validateForm()) return;
-    setIsSubmitting(true);
+
+    const missingFields = [];
+    if (!formData.eventName) missingFields.push("Event Name");
+    if (!formData.venue) missingFields.push("Venue");
+    if (!formData.organizedBy) missingFields.push("Organized By");
+    if (!formData.totalParticipants || isNaN(formData.totalParticipants) || formData.totalParticipants <= 0) missingFields.push("Total Participants");
+    if (!formData.timeFrom) missingFields.push("Time From");
+    if (!formData.timeTo) missingFields.push("Time To");
+    if (formData.tenure === "1 Day" && !formData.date) missingFields.push("Date");
+    if (formData.tenure === "Multiple Days" && (!formData.dateFrom || !formData.dateTo)) {
+      if (!formData.dateFrom) missingFields.push("Date From");
+      if (!formData.dateTo) missingFields.push("Date To");
+    }
+    if (formData.eventType === "Other" && !formData.customEventType) missingFields.push("Custom Event Type");
+
+    if (missingFields.length > 0) {
+      const errorMsg = `Missing required fields: ${missingFields.join(", ")}.`;
+      console.log("Validation failed:", errorMsg);
+      setError(errorMsg);
+      setIsSubmitting(false);
+      return;
+    }
 
     const submissionData = new FormData();
     try {
@@ -218,23 +347,26 @@ function EditReport() {
         if (key === "poster" || key === "permissionImage") {
           if (formData[key] instanceof File) {
             submissionData.append(key, formData[key]);
+            console.log(`Appended ${key}: ${formData[key].name}, size: ${formData[key].size} bytes`);
           }
-        } else if (["attendance", "photographs"].includes(key)) {
-          Array.isArray(formData[key]) &&
-            formData[key].forEach(file => {
+        } else if (key === "attendance" || key === "photographs") {
+          if (Array.isArray(formData[key])) {
+            formData[key].forEach((file, index) => {
               if (file instanceof File) {
                 submissionData.append(key, file);
+                console.log(`Appended ${key}[${index}]: ${file.name}, size: ${file.size} bytes`);
               }
             });
+          }
         } else if (key === "feedback") {
-          const feedbackWithAnalytics = formData.feedback.map((item, idx) => ({
-            ...item,
-            analytics: item.analytics instanceof File ? `feedbackAnalytics-${idx}` : null,
-          }));
-          submissionData.append("feedback", JSON.stringify(feedbackWithAnalytics));
-          formData.feedback.forEach((item, idx) => {
+          submissionData.append("feedback", JSON.stringify(formData.feedback.map(item => ({
+            question: item.question || "",
+            answer: item.answer || ""
+          }))));
+          formData.feedback.forEach((item, index) => {
             if (item.analytics instanceof File) {
-              submissionData.append(`feedbackAnalytics-${idx}`, item.analytics);
+              submissionData.append(`feedbackAnalytics-${index}`, item.analytics);
+              console.log(`Appended feedbackAnalytics-${index}: ${item.analytics.name}, size: ${item.analytics.size} bytes`);
             }
           });
         } else if (Array.isArray(formData[key])) {
@@ -244,8 +376,18 @@ function EditReport() {
         }
       });
 
+      console.log("FormData entries:", [...submissionData.entries()]);
+    } catch (err) {
+      console.error("Error building FormData:", err.message);
+      setError("Failed to prepare form data.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
       const token = localStorage.getItem("token");
-      await axios.put(
+      if (!token) throw new Error("No authentication token found.");
+      const res = await axios.put(
         `http://localhost:3001/api/reports/${reportId}`,
         submissionData,
         {
@@ -255,305 +397,562 @@ function EditReport() {
           },
         }
       );
-      setSuccess("Successfully updated report!");
-      setTimeout(() => navigate("/dashboard-dept/view-report"), 1500);
-    } catch (err) {
-      setError("Failed to update: " + (err.response?.data?.error || err.message));
+      console.log("Submission successful:", res.data);
+      setSuccess("Report updated successfully!");
+      setIsSubmitted(true);
+      setShowModal(true);
+    } catch (error) {
+      console.error("Submission error:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      setError(`Failed to update: ${error.response?.data?.error || error.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // CSS styles for fixed height, consistent image preview
-  const imgPreviewStyle = {
-    height: 80,
-    width: "auto",
-    objectFit: "contain",
-    border: "1px solid #aaa",
-    marginRight: 8,
+  const closeModal = () => {
+    setShowModal(false);
+    navigate("/dashboard-dept/view-report");
   };
+
+  if (isLoading) {
+    return <div style={{ textAlign: "center", padding: 20 }}>Loading report data...</div>;
+  }
 
   return (
     <div className="reportcreate">
       <div className="create-report">
         <h2>Edit Report for {formData.department || "Department"}</h2>
-        {error && <div className="error" style={{ color: "red", fontSize: 14, marginBottom: 10 }}>{error}</div>}
-        {success && <div className="success" style={{ color: "green", fontSize: 14, marginBottom: 10 }}>{success}</div>}
+        {error && <div className="error" style={{ color: "red", fontSize: "14px", marginBottom: "10px" }}>{error}</div>}
+        {success && <div className="success" style={{ color: "green", fontSize: "14px", marginBottom: "10px" }}>{success}</div>}
+        {showModal && (
+          <div className="modal">
+            <div className="modal-content">
+              <p>Report Updated Successfully.</p>
+              <button onClick={closeModal} style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
+                Close
+              </button>
+            </div>
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
-
           <div className="form-group">
             <label>Department</label>
-            <input type="text" value={formData.department} disabled style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+            <input type="text" value={formData.department} disabled style={{ fontFamily: "Times New Roman", fontSize: "12px" }} />
           </div>
-
           <div className="form-group">
             <label>Academic Year *</label>
-            <select name="academicYear" value={formData.academicYear} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
+            <select name="academicYear" value={formData.academicYear} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
               <option value="2024-25">2024-25</option>
               <option value="2025-26">2025-26</option>
               <option value="2026-27">2026-27</option>
             </select>
           </div>
-
           <div className="form-group">
             <label>Organized By *</label>
-            <input type="text" name="organizedBy" value={formData.organizedBy} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+            <input
+              type="text"
+              name="organizedBy"
+              value={formData.organizedBy}
+              onChange={handleChange}
+              required
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            />
           </div>
-
           <div className="form-group">
             <label>Event Name *</label>
-            <input type="text" name="eventName" value={formData.eventName} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+            <input
+              type="text"
+              name="eventName"
+              value={formData.eventName}
+              onChange={handleChange}
+              required
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            />
           </div>
-
           <div className="form-group">
             <label>Tenure *</label>
-            <select name="tenure" value={formData.tenure} onChange={handleChange} style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
+            <select name="tenure" value={formData.tenure} onChange={handleChange} style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
               <option value="1 Day">1 Day</option>
               <option value="Multiple Days">Multiple Days</option>
             </select>
           </div>
-
           <div className="form-group">
             <label>Date *</label>
-            <input type="date" name="date" value={formData.date} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+            {formData.tenure === "1 Day" ? (
+              <input
+                type="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                required
+                style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+              />
+            ) : (
+              <div className="date-range">
+                <input
+                  type="date"
+                  name="dateFrom"
+                  value={formData.dateFrom}
+                  onChange={handleChange}
+                  required
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px", marginRight: 8 }}
+                />
+                <input
+                  type="date"
+                  name="dateTo"
+                  value={formData.dateTo}
+                  onChange={handleChange}
+                  required
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+                />
+              </div>
+            )}
           </div>
-
           <div className="form-group">
             <label>Time *</label>
             <div className="time-range">
-              <input type="time" name="timeFrom" value={formData.timeFrom} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12, marginRight: 8 }} />
-              <input type="time" name="timeTo" value={formData.timeTo} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+              <input
+                type="time"
+                name="timeFrom"
+                value={formData.timeFrom}
+                onChange={handleChange}
+                required
+                style={{ fontFamily: "Times New Roman", fontSize: "12px", marginRight: 8 }}
+              />
+              <input
+                type="time"
+                name="timeTo"
+                value={formData.timeTo}
+                onChange={handleChange}
+                required
+                style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+              />
             </div>
           </div>
-
           <div className="form-group">
             <label>Venue *</label>
-            <input type="text" name="venue" value={formData.venue} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+            <input
+              type="text"
+              name="venue"
+              value={formData.venue}
+              onChange={handleChange}
+              required
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            />
           </div>
-
-          {/* Poster preview */}
           <div className="form-group">
-            <label>Poster</label>
+            <label>Poster / Circular</label>
             {(previews.poster || existingFiles.poster) && (
-              <div>
-                <img src={previews.poster || existingFiles.poster} alt="Poster Preview" style={{ maxWidth: 200, maxHeight: 120, marginBottom: 8, border: "1px solid #aaa" }} />
-                <button type="button" onClick={() => {
-                  setFormData(prev => ({ ...prev, poster: null }));
-                  setPreviews(prev => ({ ...prev, poster: null }));
-                  setExistingFiles(prev => ({ ...prev, poster: null }));
-                }}>
-                  Remove
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+                <img
+                  src={previews.poster || existingFiles.poster}
+                  alt="Poster Preview"
+                  style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa", marginRight: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeFile("poster", null, !!existingFiles.poster)}
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px", color: "red", background: "none", border: "none", cursor: "pointer" }}
+                >
+                  &times;
                 </button>
               </div>
             )}
-            <input type="file" accept="image/jpeg,image/png" onChange={e => handleSingleFileChange(e, "poster")} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+            <input
+              type="file"
+              accept="image/jpeg,image/png"
+              onChange={e => handleSingleFileChange(e, "poster")}
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            />
           </div>
-
-          {/* Speakers */}
           <div className="form-group">
             <label>Speakers</label>
-            {formData.speakers.map((speaker, idx) => (
-              <div key={idx} className="dynamic-field">
+            {formData.speakers.map((speaker, index) => (
+              <div key={index} className="dynamic-field">
                 <input
                   type="text"
                   value={speaker.name || ""}
-                  onChange={e => handleDynamicChange(e, idx, "speakers", "name")}
+                  onChange={e => handleDynamicChange(e, index, "speakers", "name")}
                   placeholder="Speaker name"
-                  style={{ fontFamily: "Times New Roman", fontSize: 12 }}
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
                 />
                 <textarea
                   value={speaker.background || ""}
-                  onChange={e => handleDynamicChange(e, idx, "speakers", "background")}
+                  onChange={e => handleDynamicChange(e, index, "speakers", "background")}
                   placeholder="Speaker background"
-                  rows={3}
-                  style={{ fontFamily: "Times New Roman", fontSize: 12 }}
+                  rows="3"
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
                 />
                 {formData.speakers.length > 1 && (
-                  <button type="button" onClick={() => removeDynamicField(idx, "speakers")} className="remove-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-            <button type="button" onClick={() => addDynamicField("speakers")} className="add-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              Add Speaker
-            </button>
-          </div>
-
-          {/* Objectives */}
-          <div className="form-group">
-            <label>Objectives</label>
-            {formData.objectives.map((objective, idx) => (
-              <div key={idx} className="dynamic-field">
-                <textarea
-                  value={objective || ""}
-                  onChange={e => handleDynamicChange(e, idx, "objectives")}
-                  placeholder={`Objective ${idx + 1}`}
-                  rows={3}
-                  style={{ fontFamily: "Times New Roman", fontSize: 12 }}
-                />
-                {formData.objectives.length > 1 && (
-                  <button type="button" onClick={() => removeDynamicField(idx, "objectives")} className="remove-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-            <button type="button" onClick={() => addDynamicField("objectives")} className="add-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              Add
-            </button>
-          </div>
-
-          {/* Outcomes */}
-          <div className="form-group">
-            <label>Outcomes</label>
-            {formData.outcomes.map((outcome, idx) => (
-              <div key={idx} className="dynamic-field">
-                <textarea
-                  value={outcome || ""}
-                  onChange={e => handleDynamicChange(e, idx, "outcomes")}
-                  placeholder={`Outcome ${idx + 1}`}
-                  rows={3}
-                  style={{ fontFamily: "Times New Roman", fontSize: 12 }}
-                />
-                {formData.outcomes.length > 1 && (
-                  <button type="button" onClick={() => removeDynamicField(idx, "outcomes")} className="remove-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-            <button type="button" onClick={() => addDynamicField("outcomes")} className="add-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              Add
-            </button>
-          </div>
-
-          <div className="form-group">
-            <label>Total Participants *</label>
-            <input type="number" name="totalParticipants" value={formData.totalParticipants} onChange={handleChange} required min="0" style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          <div className="form-group">
-            <label>Female Participants</label>
-            <input type="number" name="femaleParticipants" value={formData.femaleParticipants} onChange={handleChange} min="0" style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          <div className="form-group">
-            <label>Male Participants</label>
-            <input type="number" name="maleParticipants" value={formData.maleParticipants} onChange={handleChange} min="0" style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          <div className="form-group">
-            <label>Event Type</label>
-            <select name="eventType" value={formData.eventType} onChange={handleChange} style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              <option value="Session">Session</option>
-              <option value="Workshop">Workshop</option>
-              <option value="Bootcamp">Bootcamp</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>{formData.eventType || "Event"} Summary</label>
-            <textarea name="summary" value={formData.summary} onChange={handleChange} rows={5} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          {/* Attendance Images */}
-          <div className="form-group">
-            <label>Attendance Images</label>
-            <input type="file" accept="image/jpeg,image/png" multiple name="attendance[]" onChange={e => handleMultipleFileChange(e, "attendance")} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-              {(previews.attendance || []).map((url, idx) => (
-                <img key={`preview-attendance-${idx}`} src={url} alt={`Attendance Preview ${idx + 1}`} style={imgPreviewStyle} />
-              ))}
-              {(existingFiles.attendance || []).map((url, idx) => (
-                <img key={`existing-attendance-${idx}`} src={url} alt={`Existing Attendance ${idx + 1}`} style={imgPreviewStyle} />
-              ))}
-            </div>
-          </div>
-
-          {/* Permission Image */}
-          <div className="form-group">
-            <label>Permission Image</label>
-            {(previews.permissionImage || existingFiles.permissionImage) && (
-              <div>
-                <img src={previews.permissionImage || existingFiles.permissionImage} alt="Permission Preview" style={{ maxWidth: 200, maxHeight: 120, marginBottom: 8, border: "1px solid #aaa" }} />
-                <button type="button" onClick={() => {
-                  setFormData(prev => ({ ...prev, permissionImage: null }));
-                  setPreviews(prev => ({ ...prev, permissionImage: null }));
-                  setExistingFiles(prev => ({ ...prev, permissionImage: null }));
-                }}>Remove</button>
-              </div>
-            )}
-            <input type="file" accept="image/jpeg,image/png" onChange={e => handleSingleFileChange(e, "permissionImage")} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
-          </div>
-
-          {/* Feedback */}
-          <div className="form-group">
-            <label>Feedback</label>
-            {formData.feedback.map((item, idx) => (
-              <div key={idx} className="feedback-item" style={{ marginBottom: 12 }}>
-                <input
-                  type="text"
-                  value={item.question || ""}
-                  onChange={e => handleDynamicChange(e, idx, "feedback", "question")}
-                  placeholder={`Question ${idx + 1}`}
-                  style={{ fontFamily: "Times New Roman", fontSize: 12, marginBottom: 4, width: "100%" }}
-                />
-                <textarea
-                  value={item.answer || ""}
-                  onChange={e => handleDynamicChange(e, idx, "feedback", "answer")}
-                  placeholder="Answer/Review"
-                  rows={3}
-                  style={{ fontFamily: "Times New Roman", fontSize: 12, marginBottom: 4, width: "100%" }}
-                />
-                {(previews[`feedback-${idx}`] || (Array.isArray(existingFiles.feedback) && existingFiles.feedback[idx])) && (
-                  <img
-                    src={previews[`feedback-${idx}`] || existingFiles.feedback[idx]}
-                    alt={`Feedback Analytics Preview ${idx + 1}`}
-                    style={{ ...imgPreviewStyle, marginBottom: 4 }}
-                  />
-                )}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  name={`feedbackAnalytics-${idx}`}
-                  onChange={e => handleFeedbackAnalytics(e, idx)}
-                  style={{ fontFamily: "Times New Roman", fontSize: 12, marginBottom: 4 }}
-                />
-                {formData.feedback.length > 1 && (
                   <button
                     type="button"
-                    onClick={() => removeDynamicField(idx, "feedback")}
+                    onClick={() => removeDynamicField(index, "speakers")}
                     className="remove-btn"
-                    style={{ fontFamily: "Times New Roman", fontSize: 12 }}
+                    style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
                   >
                     Remove
                   </button>
                 )}
               </div>
             ))}
-            <button type="button" onClick={() => addDynamicField("feedback")} className="add-btn" style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              Add Feedback
+            <button
+              type="button"
+              onClick={() => addDynamicField("speakers")}
+              className="add-btn"
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            >
+              Add Speaker
             </button>
           </div>
-
-          {/* Photographs */}
           <div className="form-group">
-            <label>Photographs</label>
-            <input type="file" accept="image/jpeg,image/png" multiple name="photographs[]" onChange={e => handleMultipleFileChange(e, "photographs")} style={{ fontFamily: "Times New Roman", fontSize: 12 }} />
+            <label>Objectives</label>
+            {formData.objectives.map((objective, index) => (
+              <div key={index} className="dynamic-field">
+                <textarea
+                  value={objective || ""}
+                  onChange={e => handleDynamicChange(e, index, "objectives")}
+                  placeholder={`Objective ${index + 1}`}
+                  rows="3"
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+                />
+                {formData.objectives.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeDynamicField(index, "objectives")}
+                    className="remove-btn"
+                    style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => addDynamicField("objectives")}
+              className="add-btn"
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            >
+              Add Objective
+            </button>
+          </div>
+          <div className="form-group">
+            <label>Outcomes</label>
+            {formData.outcomes.map((outcome, index) => (
+              <div key={index} className="dynamic-field">
+                <textarea
+                  value={outcome || ""}
+                  onChange={e => handleDynamicChange(e, index, "outcomes")}
+                  placeholder={`Outcome ${index + 1}`}
+                  rows="3"
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+                />
+                {formData.outcomes.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeDynamicField(index, "outcomes")}
+                    className="remove-btn"
+                    style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => addDynamicField("outcomes")}
+              className="add-btn"
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            >
+              Add Outcome
+            </button>
+          </div>
+          <div className="form-group">
+            <label>Student Coordinators</label>
+            {formData.studentCoordinators.map((coordinator, index) => (
+              <div key={index} className="dynamic-field">
+                <textarea
+                  value={coordinator || ""}
+                  onChange={e => handleDynamicChange(e, index, "studentCoordinators")}
+                  placeholder={`Student Coordinator ${index + 1}`}
+                  rows="3"
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+                />
+                {formData.studentCoordinators.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeDynamicField(index, "studentCoordinators")}
+                    className="remove-btn"
+                    style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => addDynamicField("studentCoordinators")}
+              className="add-btn"
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            >
+              Add Student Coordinator
+            </button>
+          </div>
+          <div className="form-group">
+            <label>Faculty Coordinators</label>
+            {formData.facultyCoordinators.map((coordinator, index) => (
+              <div key={index} className="dynamic-field">
+                <textarea
+                  value={coordinator || ""}
+                  onChange={e => handleDynamicChange(e, index, "facultyCoordinators")}
+                  placeholder={`Faculty Coordinator ${index + 1}`}
+                  rows="3"
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+                />
+                {formData.facultyCoordinators.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeDynamicField(index, "facultyCoordinators")}
+                    className="remove-btn"
+                    style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => addDynamicField("facultyCoordinators")}
+              className="add-btn"
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            >
+              Add Faculty Coordinator
+            </button>
+          </div>
+          <div className="form-group">
+            <label>Male Participants</label>
+            <input
+              type="number"
+              name="maleParticipants"
+              value={formData.maleParticipants}
+              onChange={handleChange}
+              min="0"
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            />
+          </div>
+          <div className="form-group">
+            <label>Female Participants</label>
+            <input
+              type="number"
+              name="femaleParticipants"
+              value={formData.femaleParticipants}
+              onChange={handleChange}
+              min="0"
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            />
+          </div>
+          <div className="form-group">
+            <label>Total Participants *</label>
+            <input
+              type="number"
+              name="totalParticipants"
+              value={formData.totalParticipants}
+              disabled
+              min="0"
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            />
+          </div>
+          <div className="form-group">
+            <label>Event Type</label>
+            <select name="eventType" value={formData.eventType} onChange={handleChange} style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
+              <option value="Session">Session</option>
+              <option value="Workshop">Workshop</option>
+              <option value="Bootcamp">Bootcamp</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          {formData.eventType === "Other" && (
+            <div className="form-group">
+              <label>Other</label>
+              <input
+                type="text"
+                name="customEventType"
+                value={formData.customEventType}
+                onChange={handleChange}
+                style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+              />
+            </div>
+          )}
+          <div className="form-group">
+            <label>{formData.eventType !== "Other" ? formData.eventType || "Event" : formData.customEventType || "Event"} Summary</label>
+            <textarea
+              name="summary"
+              value={formData.summary}
+              onChange={handleChange}
+              rows="5"
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            />
+          </div>
+          <div className="form-group">
+            <label>Attendance Images</label>
+            <input
+              type="file"
+              accept="image/jpeg,image/png"
+              multiple
+              name="attendance[]"
+              onChange={e => handleMultipleFileChange(e, "attendance")}
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            />
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-              {(previews.photographs || []).map((url, idx) => (
-                <img key={`preview-photo-${idx}`} src={url} alt={`Photo Preview ${idx + 1}`} style={imgPreviewStyle} />
-              ))}
-              {(existingFiles.photographs || []).map((url, idx) => (
-                <img key={`existing-photo-${idx}`} src={url} alt={`Existing Photograph ${idx + 1}`} style={imgPreviewStyle} />
+              {[...existingFiles.attendance, ...previews.attendance].map((url, index) => (
+                <div key={`attendance-${index}`} style={{ position: "relative" }}>
+                  <img
+                    src={url}
+                    alt={`Attendance ${index + 1}`}
+                    style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeFile("attendance", index, index < existingFiles.attendance.length)}
+                    style={{ position: "absolute", top: 0, right: 0, color: "red", background: "none", border: "none", cursor: "pointer", fontSize: "16px" }}
+                  >
+                    &times;
+                  </button>
+                </div>
               ))}
             </div>
           </div>
-
+          <div className="form-group">
+            <label>Permission Image</label>
+            {(previews.permissionImage || existingFiles.permissionImage) && (
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+                <img
+                  src={previews.permissionImage || existingFiles.permissionImage}
+                  alt="Permission Preview"
+                  style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa", marginRight: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeFile("permissionImage", null, !!existingFiles.permissionImage)}
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px", color: "red", background: "none", border: "none", cursor: "pointer" }}
+                >
+                  &times;
+                </button>
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/png"
+              onChange={e => handleSingleFileChange(e, "permissionImage")}
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            />
+          </div>
+          <div className="form-group">
+            <label>Feedback</label>
+            {formData.feedback?.map((item, index) => (
+              <div key={index} className="feedback-item" style={{ marginBottom: 12 }}>
+                <input
+                  type="text"
+                  value={item.question || ""}
+                  onChange={e => handleDynamicChange(e, index, "feedback", "question")}
+                  placeholder={`Question ${index + 1}`}
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px", marginBottom: 4, width: "100%" }}
+                />
+                <textarea
+                  value={item.answer || ""}
+                  onChange={e => handleDynamicChange(e, index, "feedback", "answer")}
+                  placeholder="Answer/Review"
+                  rows="3"
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px", marginBottom: 4, width: "100%" }}
+                />
+                {(previews.feedback[index] || existingFiles.feedback[index]) && (
+                  <div style={{ position: "relative", marginBottom: 4 }}>
+                    <img
+                      src={previews.feedback[index] || existingFiles.feedback[index]}
+                      alt={`Feedback Analytics Preview ${index + 1}`}
+                      style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa" }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeFile("feedback", index, !!existingFiles.feedback[index])}
+                      style={{ position: "absolute", top: 0, right: 0, color: "red", background: "none", border: "none", cursor: "pointer", fontSize: "16px" }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  name={`feedbackAnalytics-${index}`}
+                  onChange={e => handleFeedbackAnalytics(e, index)}
+                  style={{ fontFamily: "Times New Roman", fontSize: "12px", marginBottom: 4 }}
+                />
+                {formData.feedback.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeDynamicField(index, "feedback")}
+                    className="remove-btn"
+                    style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => addDynamicField("feedback")}
+              className="add-btn"
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            >
+              Add Feedback
+            </button>
+          </div>
+          <div className="form-group">
+            <label>Photographs</label>
+            <input
+              type="file"
+              accept="image/jpeg,image/png"
+              multiple
+              name="photographs[]"
+              onChange={e => handleMultipleFileChange(e, "photographs")}
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            />
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+              {[...existingFiles.photographs, ...previews.photographs].map((url, index) => (
+                <div key={`photograph-${index}`} style={{ position: "relative" }}>
+                  <img
+                    src={url}
+                    alt={`Photograph ${index + 1}`}
+                    style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeFile("photographs", index, index < existingFiles.photographs.length)}
+                    style={{ position: "absolute", top: 0, right: 0, color: "red", background: "none", border: "none", cursor: "pointer", fontSize: "16px" }}
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="button-group" style={{ marginTop: 20 }}>
-            <button type="submit" className="submit-btn" disabled={isSubmitting} style={{ fontFamily: "Times New Roman", fontSize: 12 }}>
-              {isSubmitting ? "Saving..." : "Update Report"}
+            <button
+              type="submit"
+              className="submit-btn"
+              disabled={isSubmitting}
+              style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+            >
+              {isSubmitting ? "Updating..." : "Update Report"}
             </button>
           </div>
         </form>

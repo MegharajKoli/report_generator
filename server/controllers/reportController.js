@@ -28,20 +28,36 @@ const createReport = async (req, res) => {
       venue,
       objectives,
       outcomes,
+      studentCoordinators,
+      facultyCoordinators,
       totalParticipants,
       femaleParticipants,
       maleParticipants,
       eventType,
+      customEventType,
       summary,
       speakers,
       feedback
     } = req.body;
 
+    // Validate required fields
+    if (!eventName || !venue || !organizedBy || !totalParticipants || !timeFrom || !timeTo) {
+      throw new Error('Missing required fields: Event Name, Venue, Organized By, Total Participants, Time From, Time To');
+    }
+    if (tenure === '1 Day' && !date) {
+      throw new Error('Date is required for single-day events');
+    }
+    if (tenure === 'Multiple Days' && (!dateFrom || !dateTo)) {
+      throw new Error('Date From and Date To are required for multiple-day events');
+    }
+
     console.log('Parsing JSON fields');
-    let parsedObjectives, parsedOutcomes, parsedSpeakers, parsedFeedback;
+    let parsedObjectives, parsedOutcomes, parsedStudentCoordinators, parsedFacultyCoordinators, parsedSpeakers, parsedFeedback;
     try {
       parsedObjectives = objectives ? JSON.parse(objectives) : [];
       parsedOutcomes = outcomes ? JSON.parse(outcomes) : [];
+      parsedStudentCoordinators = studentCoordinators ? JSON.parse(studentCoordinators) : [];
+      parsedFacultyCoordinators = facultyCoordinators ? JSON.parse(facultyCoordinators) : [];
       parsedSpeakers = speakers ? JSON.parse(speakers) : [];
       parsedFeedback = feedback ? JSON.parse(feedback) : [];
     } catch (parseError) {
@@ -49,7 +65,14 @@ const createReport = async (req, res) => {
       throw new Error(`Invalid JSON in form data: ${parseError.message}`);
     }
 
-    console.log('Parsed feedback:', JSON.stringify(parsedFeedback, null, 2));
+    console.log('Parsed fields:', {
+      objectives: parsedObjectives,
+      outcomes: parsedOutcomes,
+      studentCoordinators: parsedStudentCoordinators,
+      facultyCoordinators: parsedFacultyCoordinators,
+      speakers: parsedSpeakers,
+      feedback: JSON.stringify(parsedFeedback, null, 2)
+    });
 
     const validateImage = async (file) => {
       if (!file) {
@@ -117,7 +140,10 @@ const createReport = async (req, res) => {
       photographsCount: photographs.length,
       hasPermissionImage: !!permissionImage,
       feedbackAnalyticsCount: Object.keys(feedbackAnalytics).length,
-      feedback: feedbackWithAnalytics
+      feedback: feedbackWithAnalytics,
+      studentCoordinators: parsedStudentCoordinators,
+      facultyCoordinators: parsedFacultyCoordinators,
+      customEventType
     });
 
     const newReport = new Report({
@@ -135,10 +161,13 @@ const createReport = async (req, res) => {
       poster: poster?.buffer,
       objectives: parsedObjectives,
       outcomes: parsedOutcomes,
+      studentCoordinators: parsedStudentCoordinators,
+      facultyCoordinators: parsedFacultyCoordinators,
       totalParticipants,
       femaleParticipants,
       maleParticipants,
       eventType,
+      customEventType,
       summary,
       attendance: attendance.map(item => item.buffer),
       permissionImage: permissionImage?.buffer,
@@ -163,24 +192,14 @@ const createReport = async (req, res) => {
   }
 };
 
-
-
 const getReports = async (req, res) => {
- console.log('Received GET /api/reports', { reportId: req.query.reportId });
+  console.log('Received GET /api/reports', { 
+    reportId: req.query.reportId, 
+    userId: req.user?.userId, 
+    role: req.user?.role 
+  });
   try {
     const { reportId } = req.query;
-
-    if (!reportId || !mongoose.isValidObjectId(reportId)) {
-      console.error('Invalid report ID:', reportId);
-      return res.status(400).json({ message: 'Invalid or missing report ID' });
-    }
-
-    console.log('Querying report, userId:', req.user?.userId);
-    const report = await Report.findOne({ _id: reportId, createdBy: req.user.userId }).select('-__v');
-    if (!report) {
-      console.error('Report not found or unauthorized:', { reportId, userId: req.user?.userId });
-      return res.status(404).json({ message: 'Report not found or unauthorized' });
-    }
 
     const bufferToBase64 = (buffer, fieldName) => {
       if (!buffer) {
@@ -193,10 +212,9 @@ const getReports = async (req, res) => {
       }
       try {
         const base64 = buffer.toString('base64');
-        // Heuristic MIME type detection
         const isJpeg = buffer[0] === 0xFF && buffer[1] === 0xD8;
         const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
-        console.log(`Converted buffer to base64 for ${fieldName}, MIME: ${mimeType}, length: ${base64.length}, startsWith: ${base64.substring(0, 20)}`);
+        console.log(`Converted buffer to base64 for ${fieldName}, MIME: ${mimeType}, length: ${base64.length}`);
         return `data:${mimeType};base64,${base64}`;
       } catch (err) {
         console.error(`Error converting buffer to base64 for ${fieldName}:`, err.message);
@@ -204,54 +222,85 @@ const getReports = async (req, res) => {
       }
     };
 
-    console.log('Raw feedback from MongoDB:', JSON.stringify(report.feedback, null, 2));
-    const reportData = {
-      ...report.toObject(), // Convert Mongoose document to plain object
-      poster: bufferToBase64(report.poster, 'poster'),
-      attendance: report.attendance.map((img, i) => bufferToBase64(img, `attendance[${i}]`)),
-      permissionImage: bufferToBase64(report.permissionImage, 'permissionImage'),
-      feedback: report.feedback.map((fb, i) => ({
-        question: String(fb.question || ''),
-        answer: String(fb.answer || ''),
-        analytics: bufferToBase64(fb.analytics, `feedback[${i}].analytics`)
-      })),
-      photographs: report.photographs.map((img, i) => bufferToBase64(img, `photographs[${i}]`))
-    };
-
-    console.log('Sending report data:', {
-      reportId,
-      poster: !!reportData.poster,
-      attendanceCount: reportData.attendance.length,
-      photographsCount: reportData.photographs.length,
-      permissionImage: !!reportData.permissionImage,
-      feedbackCount: reportData.feedback.length,
-      feedbackDetails: reportData.feedback.map(fb => ({
-        question: fb.question,
-        answer: fb.answer,
-        hasAnalytics: !!fb.analytics
-      }))
-    });
-
-    res.status(200).json(reportData);
+    if (reportId) {
+      // Fetch single report by ID
+      if (!mongoose.isValidObjectId(reportId)) {
+        console.error('Invalid report ID:', reportId);
+        return res.status(400).json({ message: 'Invalid report ID' });
+      }
+      let query = { _id: reportId };
+      if (req.user?.role !== 'office') {
+        query.createdBy = req.user.userId;
+      }
+      const report = await Report.findOne(query)
+        .populate('department', 'name')
+        .select('-__v');
+      if (!report) {
+        console.error('Report not found or unauthorized:', { reportId, userId: req.user?.userId });
+        return res.status(404).json({ message: 'Report not found or unauthorized' });
+      }
+      const reportData = {
+        ...report.toObject(),
+        poster: bufferToBase64(report.poster, 'poster'),
+        attendance: report.attendance.map((img, i) => bufferToBase64(img, `attendance[${i}]`)),
+        permissionImage: bufferToBase64(report.permissionImage, 'permissionImage'),
+        feedback: report.feedback.map((fb, i) => ({
+          question: String(fb.question || ''),
+          answer: String(fb.answer || ''),
+          analytics: bufferToBase64(fb.analytics, `feedback[${i}].analytics`)
+        })),
+        photographs: report.photographs.map((img, i) => bufferToBase64(img, `photographs[${i}]`))
+      };
+      console.log('Sending single report:', { reportId, eventName: reportData.eventName });
+      return res.status(200).json(reportData);
+    } else {
+      // Fetch reports based on user role
+      let reports;
+      if (req.user.role === 'office') {
+        reports = await Report.find({})
+          .populate('department', 'name')
+          .select('-__v');
+        console.log('Office user fetched all reports:', { count: reports.length, userId: req.user.userId });
+      } else {
+        reports = await Report.find({ createdBy: req.user.userId })
+          .populate('department', 'name')
+          .select('-__v');
+        console.log('Non-office user fetched their reports:', { count: reports.length, userId: req.user.userId });
+      }
+      const reportsData = reports.map(report => ({
+        ...report.toObject(),
+        poster: bufferToBase64(report.poster, 'poster'),
+        attendance: report.attendance.map((img, i) => bufferToBase64(img, `attendance[${i}]`)),
+        permissionImage: bufferToBase64(report.permissionImage, 'permissionImage'),
+        feedback: report.feedback.map((fb, i) => ({
+          question: String(fb.question || ''),
+          answer: String(fb.answer || ''),
+          analytics: bufferToBase64(fb.analytics, `feedback[${i}].analytics`)
+        })),
+        photographs: report.photographs.map((img, i) => bufferToBase64(img, `photographs[${i}]`))
+      }));
+      console.log('Sending reports:', { count: reportsData.length, userId: req.user.userId, role: req.user.role });
+      return res.status(200).json(reportsData);
+    }
   } catch (error) {
-    console.error('Error fetching report:', {
+    console.error('Error fetching reports:', {
       message: error.message,
       stack: error.stack,
     });
     res.status(500).json({ error: 'Server error' });
   }
 };
+
 const getReportsByDepartment = async (req, res) => {
   try {
     const department = req.user.department;
-     console.log("User department:", department); 
+    console.log("User department:", department); 
 
     const reports = await Report.find({ department })
-    
-
-      .select("eventName academicYear organizedBy createdAt") // only necessary fields
+      .populate('department', 'name')
+      .select("eventName academicYear organizedBy createdAt")
       .sort({ createdAt: -1 });
-       console.log("Found reports:", reports.length);
+    console.log("Found reports:", reports.length);
 
     res.status(200).json(reports);
   } catch (error) {
@@ -259,7 +308,26 @@ const getReportsByDepartment = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-// DELETE /api/reports/:id
+
+const getAllReports = async (req, res) => {
+  try {
+    // Security check: Only allow office accounts
+    if (req.user.role !== 'office') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Fetch all reports, with department name and key fields for listing
+    const reports = await Report.find({})
+      .select("eventName academicYear organizedBy department createdAt")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(reports);
+  } catch (error) {
+    console.error("Error fetching all reports:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const deleteReport = async (req, res) => {
   try {
     const reportId = req.params.id;
@@ -270,7 +338,7 @@ const deleteReport = async (req, res) => {
 
     const deletedReport = await Report.findOneAndDelete({
       _id: reportId,
-      createdBy: req.user.userId, // Optional: enforce only creator can delete
+      createdBy: req.user.userId,
     });
 
     if (!deletedReport) {
@@ -284,8 +352,6 @@ const deleteReport = async (req, res) => {
   }
 };
 
-
-//Update reports
 const updateReport = async (req, res) => {
   const reportId = req.params.id;
 
@@ -305,41 +371,95 @@ const updateReport = async (req, res) => {
       eventName,
       tenure,
       date,
+      dateFrom,
+      dateTo,
       timeFrom,
       timeTo,
       venue,
       objectives,
       outcomes,
+      studentCoordinators,
+      facultyCoordinators,
       totalParticipants,
       femaleParticipants,
       maleParticipants,
       eventType,
+      customEventType,
       summary,
       speakers,
-      feedback,
+      feedback
     } = req.body;
 
-    // Parse JSON arrays safely
+    // Validate required fields
+    if (!eventName || !venue || !organizedBy || !totalParticipants || !timeFrom || !timeTo) {
+      throw new Error('Missing required fields: Event Name, Venue, Organized By, Total Participants, Time From, Time To');
+    }
+    if (tenure === '1 Day' && !date) {
+      throw new Error('Date is required for single-day events');
+    }
+    if (tenure === 'Multiple Days' && (!dateFrom || !dateTo)) {
+      throw new Error('Date From and Date To are required for multiple-day events');
+    }
+
+    // Parse JSON fields
+    const parsedFeedback = feedback ? JSON.parse(feedback || "[]") : [];
+    const parsedObjectives = objectives ? JSON.parse(objectives || "[]") : [];
+    const parsedOutcomes = outcomes ? JSON.parse(outcomes || "[]") : [];
+    const parsedStudentCoordinators = studentCoordinators ? JSON.parse(studentCoordinators || "[]") : [];
+    const parsedFacultyCoordinators = facultyCoordinators ? JSON.parse(facultyCoordinators || "[]") : [];
+    const parsedSpeakers = speakers ? JSON.parse(speakers || "[]") : [];
+
+    // Preserve existing feedback entries, updating only provided ones
+    const mergedFeedback = existingReport.feedback.map((existingFb, index) => {
+      const newFb = parsedFeedback[index];
+      if (newFb) {
+        return {
+          question: newFb.question || existingFb.question || '',
+          answer: newFb.answer || existingFb.answer || '',
+          analytics: existingFb.analytics // Preserve existing analytics
+        };
+      }
+      return existingFb; // Keep unchanged feedback entries
+    });
+
+    // Append any new feedback entries beyond existing length
+    if (parsedFeedback.length > existingReport.feedback.length) {
+      for (let i = existingReport.feedback.length; i < parsedFeedback.length; i++) {
+        mergedFeedback.push({
+          question: parsedFeedback[i].question || '',
+          answer: parsedFeedback[i].answer || '',
+          analytics: null
+        });
+      }
+    }
+
+    // Update report fields
     existingReport.academicYear = academicYear;
     existingReport.organizedBy = organizedBy;
     existingReport.eventName = eventName;
     existingReport.tenure = tenure;
-    existingReport.date = date;
+    existingReport.date = tenure === '1 Day' ? date : null;
+    existingReport.dateFrom = tenure === 'Multiple Days' ? dateFrom : null;
+    existingReport.dateTo = tenure === 'Multiple Days' ? dateTo : null;
     existingReport.timeFrom = timeFrom;
     existingReport.timeTo = timeTo;
     existingReport.venue = venue;
-    existingReport.objectives = JSON.parse(objectives || "[]");
-    existingReport.outcomes = JSON.parse(outcomes || "[]");
+    existingReport.objectives = parsedObjectives;
+    existingReport.outcomes = parsedOutcomes;
+    existingReport.studentCoordinators = parsedStudentCoordinators;
+    existingReport.facultyCoordinators = parsedFacultyCoordinators;
     existingReport.totalParticipants = totalParticipants;
     existingReport.femaleParticipants = femaleParticipants;
     existingReport.maleParticipants = maleParticipants;
     existingReport.eventType = eventType;
+    existingReport.customEventType = customEventType || '';
     existingReport.summary = summary;
-    existingReport.speakers = speakers ? JSON.parse(speakers) : [];
-    existingReport.feedback = feedback ? JSON.parse(feedback) : [];
+    existingReport.speakers = parsedSpeakers;
+    existingReport.feedback = mergedFeedback;
 
     // Handle optional file updates
     if (req.files && req.files.length > 0) {
+      const feedbackAnalytics = {};
       for (const file of req.files) {
         const { fieldname, buffer } = file;
         if (fieldname === "poster") {
@@ -347,29 +467,41 @@ const updateReport = async (req, res) => {
         } else if (fieldname === "permissionImage") {
           existingReport.permissionImage = buffer;
         } else if (fieldname === "attendance" || fieldname === "attendance[]") {
-          existingReport.attendance.push(buffer); // append new
+          existingReport.attendance.push(buffer);
         } else if (fieldname === "photographs" || fieldname === "photographs[]") {
-          existingReport.photographs.push(buffer); // append new
-        }
-        // OPTIONAL: feedback analytics files (feedbackAnalytics-0, feedbackAnalytics-1, etc.)
-        else if (fieldname.startsWith('feedbackAnalytics-')) {
-          const idx = parseInt(fieldname.split('-')[1], 10);
-          if (!isNaN(idx) && existingReport.feedback[idx]) {
-            existingReport.feedback[idx].analytics = buffer;
-          }
+          existingReport.photographs.push(buffer);
+        } else if (fieldname.startsWith('feedbackAnalytics-')) {
+          const index = parseInt(fieldname.split('-')[1], 10);
+          feedbackAnalytics[index] = buffer;
         }
       }
+      // Update feedback analytics only for specified indices
+      if (Object.keys(feedbackAnalytics).length > 0) {
+        existingReport.feedback = existingReport.feedback.map((fb, i) => ({
+          ...fb,
+          analytics: feedbackAnalytics[i] !== undefined ? feedbackAnalytics[i] : fb.analytics
+        }));
+      }
     }
+
+    console.log('Updating report:', {
+      reportId,
+      studentCoordinators: existingReport.studentCoordinators,
+      facultyCoordinators: existingReport.facultyCoordinators,
+      customEventType: existingReport.customEventType,
+      feedback: existingReport.feedback.map(fb => ({
+        question: fb.question,
+        answer: fb.answer,
+        hasAnalytics: !!fb.analytics
+      }))
+    });
 
     await existingReport.save();
     res.status(200).json({ message: "Report updated successfully" });
   } catch (error) {
     console.error("Error updating report:", error.message);
     res.status(500).json({ message: "Server error while updating report" });
-  
-}};
+  }
+};
 
-
-
-
-module.exports = { createReport, getReports,getReportsByDepartment,deleteReport ,updateReport};
+module.exports = { createReport, getReports, getReportsByDepartment, deleteReport, updateReport, getAllReports };
