@@ -50,7 +50,9 @@ router.delete("/:id", authMiddleware, deleteReport);
 //Update Report
 // PUT: Update a report by ID
 router.put("/:id", authMiddleware, upload.any(), updateReport);
+
 router.get('/all', authMiddleware, getAllReports);
+
 
 
 module.exports = router;
