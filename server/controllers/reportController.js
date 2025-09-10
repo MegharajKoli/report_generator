@@ -1,5 +1,5 @@
 const Report = require('../models/Report');
-const mongoose = require('mongoose');
+const { isValidObjectId } = require('mongoose');
 
 const createReport = async (req, res) => {
   console.log('Received POST /api/reports/create', {
@@ -38,7 +38,7 @@ const createReport = async (req, res) => {
     } = req.body;
 
     console.log('Parsing JSON fields');
-    let parsedObjectives, parsedOutcomes, parsedSpeakers, parsedFeedback;
+    let parsedObjectives = [], parsedOutcomes = [], parsedSpeakers = [], parsedFeedback = [];
     try {
       parsedObjectives = objectives ? JSON.parse(objectives) : [];
       parsedOutcomes = outcomes ? JSON.parse(outcomes) : [];
@@ -168,7 +168,7 @@ const getReports = async (req, res) => {
   try {
     const { reportId } = req.query;
 
-    if (!reportId || !mongoose.isValidObjectId(reportId)) {
+    if (!reportId || !isValidObjectId(reportId)) {
       console.error('Invalid report ID:', reportId);
       return res.status(400).json({ message: 'Invalid or missing report ID' });
     }
@@ -181,8 +181,8 @@ const getReports = async (req, res) => {
 
     console.log('Querying report, userId:', req.user?.userId, 'role:', req.user?.role);
     const report = await Report.findOne(query)
-  .populate('department', 'name') // populate only the "name" field from Department model
-  .select('-__v');
+      .populate('department', 'name') // populate only the "name" field from Department model
+      .select('-__v');
 
     if (!report) {
       console.error('Report not found or unauthorized:', { reportId, userId: req.user?.userId });
@@ -251,35 +251,40 @@ const getReports = async (req, res) => {
 
 const getReportsByDepartment = async (req, res) => {
   try {
-    const department = req.user.department;
-     console.log("User department:", department); 
+    const department = req.user?.department;
+    console.log("User department:", department);
+    if (!department) {
+      console.error("User department not found in request");
+      return res.status(400).json({ message: "User department not found" });
+    }
 
     const reports = await Report.find({ department })
-    
-
       .select("eventName academicYear organizedBy createdAt") // only necessary fields
       .sort({ createdAt: -1 });
-       console.log("Found reports:", reports.length);
+
+    console.log("Found reports:", reports.length);
 
     res.status(200).json(reports);
   } catch (error) {
-    console.error("Error fetching department reports:", error.message);
+    console.error("Error fetching department reports:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
-// DELETE /api/reports/:id
+
 const deleteReport = async (req, res) => {
   try {
     const reportId = req.params.id;
 
-    if (!mongoose.isValidObjectId(reportId)) {
+    if (!isValidObjectId(reportId)) {
       return res.status(400).json({ message: "Invalid report ID" });
     }
-     let query = { _id: reportId };
+
+    let query = { _id: reportId };
     if (req.user.role !== 'office') {
       query.createdBy = req.user.userId;
     }
-const deletedReport = await Report.findOneAndDelete(query);
+    const deletedReport = await Report.findOneAndDelete(query);
+
     if (!deletedReport) {
       return res.status(404).json({ message: "Report not found or unauthorized" });
     }
@@ -290,6 +295,7 @@ const deletedReport = await Report.findOneAndDelete(query);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 const getAllReports = async (req, res) => {
   try {
     // Security check: Only allow office accounts
@@ -309,9 +315,6 @@ const getAllReports = async (req, res) => {
   }
 };
 
-
-
-//Update reports
 const updateReport = async (req, res) => {
   const reportId = req.params.id;
 
@@ -343,10 +346,10 @@ const updateReport = async (req, res) => {
       summary,
       speakers,
       feedback,
-      attendanceBase64 = [],    // array of base64 strings for attendance images to keep
-      photographsBase64 = [],  // array of base64 strings for photographs to keep
-      removePoster,
-      removePermissionImage,
+     posterBase64,
+      permissionImageBase64,
+      attendanceBase64,
+      photographsBase64,...otherFields  // array of base64 strings for photographs to keep
     } = req.body;
 
     // Update simple fields
@@ -370,37 +373,41 @@ const updateReport = async (req, res) => {
     existingReport.speakers = speakers ? JSON.parse(speakers) : [];
     existingReport.feedback = feedback ? JSON.parse(feedback) : [];
 
-    // Replace attendance with converted buffers from base64 strings
-    existingReport.attendance = attendanceBase64.map(base64Str => {
-      if (!base64Str) return null;
-      const base64Data = base64Str.split(',')[1];
-      return Buffer.from(base64Data, 'base64');
-    }).filter(Boolean);
-
-    // Replace photographs with converted buffers from base64 strings
-    existingReport.photographs = photographsBase64.map(base64Str => {
-      if (!base64Str) return null;
-      const base64Data = base64Str.split(',')[1];
-      return Buffer.from(base64Data, 'base64');
-    }).filter(Boolean);
-
-    // Handle poster removal or update
-    if (removePoster === 'true' || removePoster === true) {
-      existingReport.poster = null;
-    } else if (req.files && req.files.length > 0) {
-      const posterFile = req.files.find(f => f.fieldname === 'poster');
-      if (posterFile) existingReport.poster = posterFile.buffer;
+   
+if (posterBase64) {
+      existingReport.poster = Buffer.from(posterBase64.split(",")[1], "base64");
     }
 
-    // Handle permissionImage removal or update
-    if (removePermissionImage === 'true' || removePermissionImage === true) {
-      existingReport.permissionImage = null;
-    } else if (req.files && req.files.length > 0) {
-      const permissionFile = req.files.find(f => f.fieldname === 'permissionImage');
-      if (permissionFile) existingReport.permissionImage = permissionFile.buffer;
+    // Update permission image
+    if (permissionImageBase64) {
+      existingReport.permissionImage = Buffer.from(permissionImageBase64.split(",")[1], "base64");
     }
 
-    // Append new uploaded attendance and photographs files
+    // ===== Modified Attendance Logic =====
+    if (Array.isArray(attendanceBase64)) {
+      const existingAttendanceBase64 = existingReport.attendance.map(buf =>
+        `data:image/png;base64,${buf.toString("base64")}`
+      );
+
+      // Keep only the files still in attendanceBase64
+      existingReport.attendance = existingAttendanceBase64
+        .filter(b64 => attendanceBase64.includes(b64))
+        .map(b64 => Buffer.from(b64.split(",")[1], "base64"));
+    }
+
+    // ===== Modified Photographs Logic =====
+    if (Array.isArray(photographsBase64)) {
+      const existingPhotographsBase64 = existingReport.photographs.map(buf =>
+        `data:image/png;base64,${buf.toString("base64")}`
+      );
+
+      // Keep only the files still in photographsBase64
+      existingReport.photographs = existingPhotographsBase64
+        .filter(b64 => photographsBase64.includes(b64))
+        .map(b64 => Buffer.from(b64.split(",")[1], "base64"));
+    }
+
+    // ===== Append new uploaded files =====
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         const { fieldname, buffer } = file;
@@ -409,28 +416,175 @@ const updateReport = async (req, res) => {
           existingReport.attendance.push(buffer);
         } else if (fieldname === "photographs" || fieldname === "photographs[]") {
           existingReport.photographs.push(buffer);
-        }
-        // Handle feedback analytics files if any
-        else if (fieldname.startsWith('feedbackAnalytics-')) {
-          const idx = parseInt(fieldname.split('-')[1], 10);
+        } else if (fieldname.startsWith("feedbackAnalytics-")) {
+          const idx = parseInt(fieldname.split("-")[1], 10);
           if (!isNaN(idx) && existingReport.feedback[idx]) {
             existingReport.feedback[idx].analytics = buffer;
           }
         }
       }
     }
+    if (posterBase64) {
+  existingReport.poster = Buffer.from(posterBase64.split(",")[1], "base64");
+} else if (req.files && req.files.length > 0) {
+  const posterFile = req.files.find(f => f.fieldname === "poster");
+  if (posterFile) {
+    existingReport.poster = posterFile.buffer;
+  }
+}
+
+// Handle Permission Image
+if (permissionImageBase64) {
+  existingReport.permissionImage = Buffer.from(permissionImageBase64.split(",")[1], "base64");
+} else if (req.files && req.files.length > 0) {
+  const permissionFile = req.files.find(f => f.fieldname === "permissionImage");
+  if (permissionFile) {
+    existingReport.permissionImage = permissionFile.buffer;
+  }
+}
+
+    // ===== Keep your rest logic unchanged =====
+    Object.keys(otherFields).forEach(key => {
+      existingReport[key] = otherFields[key];
+    });
 
     await existingReport.save();
+    res.json({ message: "Report updated successfully", report: existingReport });
 
-    res.status(200).json({ message: "Report updated successfully" });
   } catch (error) {
-    console.error("Error updating report:", error.message);
-    res.status(500).json({ message: "Server error while updating report" });
+    console.error("Error updating report:", error);
+    res.status(500).json({ error: "Failed to update report" });
+  }
+};
+
+const removeImage = async (req, res) => {
+  try {
+    const { reportId } = req.params;
+    const { field, imageUrl, index } = req.body; 
+    // field can be: "poster", "permissionImage", "attendance", "photographs"
+     console.log("🛠 Remove image request:", { reportId, field, imageUrl, index }); // 🔹
+
+    const report = await Report.findById(reportId);
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+     console.log("Before delete:", report[field]);
+
+    if (["poster", "permissionImage"].includes(field)) {
+      // Single image field (string)
+      report[field] = null;
+    } 
+    else if (["attendance", "photographs"].includes(field)) {
+  const { index } = req.body; // expect index from frontend
+  if (index === undefined) {
+    return res.status(400).json({ error: "Index is required for multi-image fields" });
+  }
+  if (index < 0 || index >= report[field].length) {
+    return res.status(400).json({ error: "Invalid index" });
+  }
+  report[field].splice(index, 1); // remove by index
+}
+
+    else {
+      return res.status(400).json({ message: "Invalid field name" });
+    }
+     console.log("After delete:", report[field]);
+
+    // Optional: delete file from local storage (only for disk storage)
+    if (imageUrl && typeof imageUrl === "string" && 
+        !imageUrl.startsWith("data:") && !imageUrl.includes("http")) {
+      const filePath = path.join(__dirname, "../uploads", path.basename(imageUrl));
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    await report.save();
+    const updated = await Report.findById(reportId);
+    console.log(`Updated ${field} length:`, updated[field]?.length);
+
+
+    res.status(200).json({ message: "Image removed successfully", report });
+  } catch (err) {
+    console.error("Error removing image:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getMinimalReports = async (req, res) => {
+  try {
+    const reports = await Report.find({}, "eventName department eventDate")
+                                .sort({ eventDate: -1 }); // Latest first
+    res.json(reports);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch reports", error: err.message });
+  }
+};
+// ✅ Search/filter minimal reports
+// 🔎 Search reports (by eventName, department, academicYear)
+const searchMinimalReports = async (req, res) => {
+  try {
+    const { search, year } = req.query;
+    let query = {};
+
+    if (search) {
+      query.$or = [
+        { eventName: { $regex: search, $options: "i" } },
+        { department: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    if (year) {
+      query.academicYear = year;
+    }
+
+    const reports = await Report.find(query, "eventName department date academicYear organizedBy")
+      .sort({ date: -1 });
+
+    res.json(reports);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to search reports", error: err.message });
+  }
+};
+
+// 📜 Annual Reports
+const getAnnualReports = async (req, res) => {
+  try {
+    const reports = await Report.find({}, "eventName department date academicYear organizedBy")
+      .sort({ date: -1 });
+
+    res.status(200).json(reports);
+  } catch (err) {
+    console.error("Error fetching annual reports:", err);
+    res.status(500).json({ message: "Failed to fetch annual reports" });
+  }
+};
+
+// 📋 Minimal Reports (for frontend table)
+const getMinimalReports = async (req, res) => {
+  try {
+    const reports = await Report.find({}, "eventName department date academicYear organizedBy")
+      .sort({ date: -1 });
+
+    res.status(200).json(reports);
+  } catch (error) {
+    console.error("Error in getMinimalReports:", error.message);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
 
 
 
-
-module.exports = { createReport, getReports,getReportsByDepartment,deleteReport ,updateReport, getAllReports, };
+module.exports = {
+  createReport,
+  getReports,
+  getReportsByDepartment,
+  deleteReport,
+  updateReport,
+  getAllReports,
+  removeImage,
+  getMinimalReports,
+  searchMinimalReports,
+  getAnnualReports,
+};

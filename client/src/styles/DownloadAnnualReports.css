@@ -1,0 +1,150 @@
+/* =======================
+   Annual Reports Styles
+   ======================= */
+
+.annual-reports-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.08);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.annual-reports-container h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #222;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+/* 🔍 Search bar */
+.search-bar {
+  display: block;
+  width: 100%;
+  max-width: 350px;
+  margin: 0 auto 20px auto;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: 0.3s ease;
+}
+
+.search-bar:focus {
+  outline: none;
+  border-color: #3b82f6; /* nice blue */
+  box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+}
+
+/* 📋 Table */
+.reports-table {
+  width: 100%; /* full width */
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  table-layout: auto; /* make columns expand naturally */
+}
+
+.reports-table th,
+.reports-table td {
+  padding: 14px 18px; /* bigger cells */
+  border: 1px solid #e5e7eb;
+  text-align: left;
+  font-size: 15px;
+}
+.search{
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+.reports-table th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap; /* prevent breaking */
+}
+
+.reports-table tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.reports-table tr:hover {
+  background-color: #f1f5f9;
+  transition: 0.2s;
+}
+
+/* ⬇️ Download button */
+.download-btn {
+  display: block;
+  margin: 0 auto;
+  padding: 12px 24px;
+  background-color: #2563eb;
+  color: white;
+  font-size: 15px;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.download-btn:hover {
+  background-color: #1e40af;
+}
+.annual-reports-container {
+  padding: 20px;
+  max-width: 900px;
+  margin: auto;
+}
+
+.search-bar {
+  width: 100%;
+  padding: 10px 14px;
+  margin: 15px 0;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.reports-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+.reports-table th,
+.reports-table td {
+  padding: 14px 18px;
+  border: 1px solid #e5e7eb;
+  text-align: left;
+  font-size: 15px;
+  color: black;
+}
+
+.reports-table th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+  color: #111827;
+}
+
+.download-container {
+  margin-top: 15px;
+  text-align: right;
+}
+
+.download-btn {
+  background-color: #1e40af;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.download-btn:hover {
+  background-color: #1d4ed8;
+}

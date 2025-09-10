@@ -1,22 +1,31 @@
 const express = require('express');
 const router = express.Router();
+const authMiddleware = require('../middleware/authMiddleware');
+const Report = require("../models/Report");
+
 const {
   createReport,
-  getReports,             // For viewing 1 report by ID (?reportId=...)
-  getReportsByDepartment ,
+  getReports,
+  getReportsByDepartment,
   deleteReport,
   updateReport,
-  getAllReports
-} = require('../controllers/reportController');
+  getAllReports,
+  removeImage,
+  getMinimalReports,       // ✅ add this
+  searchMinimalReports,
+  getAnnualReports,
+} = require('../controllers/reportController');  // No .default here
+console.log("getAnnualReports is:", getAnnualReports);
 
-const authMiddleware = require('../middleware/authMiddleware');
+
+
 const multer = require('multer');
 
 // Setup multer
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 50 * 1024 * 1024 }, 
   fileFilter: (req, file, cb) => {
     if (['image/jpeg', 'image/png'].includes(file.mimetype)) {
       cb(null, true);
@@ -27,6 +36,58 @@ const upload = multer({
 });
 
 // ========== ROUTES ==========
+
+
+router.patch(
+  '/:reportId/remove-image',
+  authMiddleware,
+  removeImage
+);
+
+router.get("/annual", async (req, res) => {
+  try {
+    const { academicYear, organizedBy } = req.query;
+    const query = {};
+    if (academicYear) query.academicYear = academicYear;
+    if (organizedBy) query.organizedBy = organizedBy;
+
+    const reports = await Report.find(query).sort({ academicYear: -1, eventName: 1 });
+
+    // Convert Buffers to base64
+    const reportsWithBase64 = reports.map(r => ({
+      reportId: r._id,
+      eventName: r.eventName,
+      academicYear: r.academicYear,
+      organizedBy: r.organizedBy,
+
+      poster: r.poster
+        ? `data:image/jpeg;base64,${r.poster.toString("base64")}`
+        : null,
+
+      photographs: r.photographs?.map(
+        buf => `data:image/png;base64,${buf.toString("base64")}`
+      ) || [],
+
+      permissionImage: r.permissionImage
+        ? `data:image/jpeg;base64,${r.permissionImage.toString("base64")}`
+        : null,
+
+      feedback: r.feedback?.map(fb => ({
+        question: fb.question,
+        answer: fb.answer,
+        analytics: fb.analytics
+          ? `data:image/png;base64,${fb.analytics.toString("base64")}`
+          : null
+      })) || []
+    }));
+
+    res.json(reportsWithBase64);  // ✅ send converted data
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 
 // ✅ Create a new report with file uploads
 router.post('/create', authMiddleware, upload.any(), (req, res, next) => {
@@ -51,9 +112,19 @@ router.delete("/:id", authMiddleware, deleteReport);
 // PUT: Update a report by ID
 router.put("/:id", authMiddleware, upload.any(), updateReport);
 
+
 router.get("/all", authMiddleware, getAllReports);
+router.get("/annual", getAnnualReports);
 
 
 
+router.get('/minimal', authMiddleware, getMinimalReports);
+
+// ✅ Search/filter minimal reports
+router.get('/minimal/search', authMiddleware, searchMinimalReports);
+
+
+
+console.log("getAnnualReports is:", getAnnualReports);
 
 module.exports = router;

@@ -8,7 +8,7 @@ const ViewReports = () => {
   const [reports, setReports] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
+  useEffect(() => { 
     const fetchReports = async () => {
       try {
         const res = await axios.get("http://localhost:3001/api/reports/all", {

@@ -8,11 +8,10 @@
   font-weight: 400;
 }
 
-body {
-  background-color: #fff;
-  color: #000;
-}
 
+.container.view-bg-white {
+  background-color: white;
+}
 
 /* Container Layout */
 .container.dashboard-mode {
@@ -134,7 +133,8 @@ body {
   color: #106694;
   font-weight: bold;
 }
-body, html {
+body {
+  background-color: white !important;
   height: 100%;
 }
 

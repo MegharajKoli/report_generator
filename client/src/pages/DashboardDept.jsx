@@ -24,6 +24,8 @@ function DashboardDept() {
 
   return (
     <>
+    <div className="container view-bg-white">
+
       <Header />
       <main className={mainClass}>
         {path === "/dashboard-dept" && (
@@ -58,6 +60,7 @@ function DashboardDept() {
         <Outlet />
       </main>
       <Footer />
+      </div>
     </>
   );
 }
