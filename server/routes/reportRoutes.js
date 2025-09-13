@@ -38,12 +38,6 @@ const upload = multer({
 // ========== ROUTES ==========
 
 
-router.patch(
-  '/:reportId/remove-image',
-  authMiddleware,
-  removeImage
-);
-
 router.get("/annual", async (req, res) => {
   try {
     const { academicYear, organizedBy } = req.query;

@@ -1,5 +1,5 @@
+const mongoose = require('mongoose');   
 const Report = require('../models/Report');
-const { isValidObjectId } = require('mongoose');
 
 const createReport = async (req, res) => {
   console.log('Received POST /api/reports/create', {
@@ -28,20 +28,36 @@ const createReport = async (req, res) => {
       venue,
       objectives,
       outcomes,
+      studentCoordinators,
+      facultyCoordinators,
       totalParticipants,
       femaleParticipants,
       maleParticipants,
       eventType,
+      customEventType,
       summary,
       speakers,
       feedback
     } = req.body;
 
+    // Validate required fields
+    if (!eventName || !venue || !organizedBy || !totalParticipants || !timeFrom || !timeTo) {
+      throw new Error('Missing required fields: Event Name, Venue, Organized By, Total Participants, Time From, Time To');
+    }
+    if (tenure === '1 Day' && !date) {
+      throw new Error('Date is required for single-day events');
+    }
+    if (tenure === 'Multiple Days' && (!dateFrom || !dateTo)) {
+      throw new Error('Date From and Date To are required for multiple-day events');
+    }
+
     console.log('Parsing JSON fields');
-    let parsedObjectives = [], parsedOutcomes = [], parsedSpeakers = [], parsedFeedback = [];
+    let parsedObjectives, parsedOutcomes, parsedStudentCoordinators, parsedFacultyCoordinators, parsedSpeakers, parsedFeedback;
     try {
       parsedObjectives = objectives ? JSON.parse(objectives) : [];
       parsedOutcomes = outcomes ? JSON.parse(outcomes) : [];
+      parsedStudentCoordinators = studentCoordinators ? JSON.parse(studentCoordinators) : [];
+      parsedFacultyCoordinators = facultyCoordinators ? JSON.parse(facultyCoordinators) : [];
       parsedSpeakers = speakers ? JSON.parse(speakers) : [];
       parsedFeedback = feedback ? JSON.parse(feedback) : [];
     } catch (parseError) {
@@ -49,7 +65,14 @@ const createReport = async (req, res) => {
       throw new Error(`Invalid JSON in form data: ${parseError.message}`);
     }
 
-    console.log('Parsed feedback:', JSON.stringify(parsedFeedback, null, 2));
+    console.log('Parsed fields:', {
+      objectives: parsedObjectives,
+      outcomes: parsedOutcomes,
+      studentCoordinators: parsedStudentCoordinators,
+      facultyCoordinators: parsedFacultyCoordinators,
+      speakers: parsedSpeakers,
+      feedback: JSON.stringify(parsedFeedback, null, 2)
+    });
 
     const validateImage = async (file) => {
       if (!file) {
@@ -117,7 +140,10 @@ const createReport = async (req, res) => {
       photographsCount: photographs.length,
       hasPermissionImage: !!permissionImage,
       feedbackAnalyticsCount: Object.keys(feedbackAnalytics).length,
-      feedback: feedbackWithAnalytics
+      feedback: feedbackWithAnalytics,
+      studentCoordinators: parsedStudentCoordinators,
+      facultyCoordinators: parsedFacultyCoordinators,
+      customEventType
     });
 
     const newReport = new Report({
@@ -135,10 +161,13 @@ const createReport = async (req, res) => {
       poster: poster?.buffer,
       objectives: parsedObjectives,
       outcomes: parsedOutcomes,
+      studentCoordinators: parsedStudentCoordinators,
+      facultyCoordinators: parsedFacultyCoordinators,
       totalParticipants,
       femaleParticipants,
       maleParticipants,
       eventType,
+      customEventType,
       summary,
       attendance: attendance.map(item => item.buffer),
       permissionImage: permissionImage?.buffer,
@@ -164,30 +193,13 @@ const createReport = async (req, res) => {
 };
 
 const getReports = async (req, res) => {
-  console.log('Received GET /api/reports', { reportId: req.query.reportId });
+  console.log('Received GET /api/reports', { 
+    reportId: req.query.reportId, 
+    userId: req.user?.userId, 
+    role: req.user?.role 
+  });
   try {
     const { reportId } = req.query;
-
-    if (!reportId || !isValidObjectId(reportId)) {
-      console.error('Invalid report ID:', reportId);
-      return res.status(400).json({ message: 'Invalid or missing report ID' });
-    }
-
-    // Office role: can view ANY report; department: only reports they created
-    let query = { _id: reportId };
-    if (req.user?.role !== 'office') {
-      query.createdBy = req.user.userId;
-    }
-
-    console.log('Querying report, userId:', req.user?.userId, 'role:', req.user?.role);
-    const report = await Report.findOne(query)
-      .populate('department', 'name') // populate only the "name" field from Department model
-      .select('-__v');
-
-    if (!report) {
-      console.error('Report not found or unauthorized:', { reportId, userId: req.user?.userId });
-      return res.status(404).json({ message: 'Report not found or unauthorized' });
-    }
 
     const bufferToBase64 = (buffer, fieldName) => {
       if (!buffer) {
@@ -200,10 +212,9 @@ const getReports = async (req, res) => {
       }
       try {
         const base64 = buffer.toString('base64');
-        // Heuristic MIME type detection
         const isJpeg = buffer[0] === 0xFF && buffer[1] === 0xD8;
         const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
-        console.log(`Converted buffer to base64 for ${fieldName}, MIME: ${mimeType}, length: ${base64.length}, startsWith: ${base64.substring(0, 20)}`);
+        console.log(`Converted buffer to base64 for ${fieldName}, MIME: ${mimeType}, length: ${base64.length}`);
         return `data:${mimeType};base64,${base64}`;
       } catch (err) {
         console.error(`Error converting buffer to base64 for ${fieldName}:`, err.message);
@@ -211,37 +222,68 @@ const getReports = async (req, res) => {
       }
     };
 
-    console.log('Raw feedback from MongoDB:', JSON.stringify(report.feedback, null, 2));
-    const reportData = {
-      ...report.toObject(), // Convert Mongoose document to plain object
-      poster: bufferToBase64(report.poster, 'poster'),
-      attendance: report.attendance.map((img, i) => bufferToBase64(img, `attendance[${i}]`)),
-      permissionImage: bufferToBase64(report.permissionImage, 'permissionImage'),
-      feedback: report.feedback.map((fb, i) => ({
-        question: String(fb.question || ''),
-        answer: String(fb.answer || ''),
-        analytics: bufferToBase64(fb.analytics, `feedback[${i}].analytics`)
-      })),
-      photographs: report.photographs.map((img, i) => bufferToBase64(img, `photographs[${i}]`))
-    };
-
-    console.log('Sending report data:', {
-      reportId,
-      poster: !!reportData.poster,
-      attendanceCount: reportData.attendance.length,
-      photographsCount: reportData.photographs.length,
-      permissionImage: !!reportData.permissionImage,
-      feedbackCount: reportData.feedback.length,
-      feedbackDetails: reportData.feedback.map(fb => ({
-        question: fb.question,
-        answer: fb.answer,
-        hasAnalytics: !!fb.analytics
-      }))
-    });
-
-    res.status(200).json(reportData);
+    if (reportId) {
+      // Fetch single report by ID
+      if (!mongoose.isValidObjectId(reportId)) {
+        console.error('Invalid report ID:', reportId);
+        return res.status(400).json({ message: 'Invalid report ID' });
+      }
+      let query = { _id: reportId };
+      if (req.user?.role !== 'office') {
+        query.createdBy = req.user.userId;
+      }
+      const report = await Report.findOne(query)
+        .populate('department', 'name')
+        .select('-__v');
+      if (!report) {
+        console.error('Report not found or unauthorized:', { reportId, userId: req.user?.userId });
+        return res.status(404).json({ message: 'Report not found or unauthorized' });
+      }
+      const reportData = {
+        ...report.toObject(),
+        poster: bufferToBase64(report.poster, 'poster'),
+        attendance: report.attendance.map((img, i) => bufferToBase64(img, `attendance[${i}]`)),
+        permissionImage: bufferToBase64(report.permissionImage, 'permissionImage'),
+        feedback: report.feedback.map((fb, i) => ({
+          question: String(fb.question || ''),
+          answer: String(fb.answer || ''),
+          analytics: bufferToBase64(fb.analytics, `feedback[${i}].analytics`)
+        })),
+        photographs: report.photographs.map((img, i) => bufferToBase64(img, `photographs[${i}]`))
+      };
+      console.log('Sending single report:', { reportId, eventName: reportData.eventName });
+      return res.status(200).json(reportData);
+    } else {
+      // Fetch reports based on user role
+      let reports;
+      if (req.user.role === 'office') {
+        reports = await Report.find({})
+          .populate('department', 'name')
+          .select('-__v');
+        console.log('Office user fetched all reports:', { count: reports.length, userId: req.user.userId });
+      } else {
+        reports = await Report.find({ createdBy: req.user.userId })
+          .populate('department', 'name')
+          .select('-__v');
+        console.log('Non-office user fetched their reports:', { count: reports.length, userId: req.user.userId });
+      }
+      const reportsData = reports.map(report => ({
+        ...report.toObject(),
+        poster: bufferToBase64(report.poster, 'poster'),
+        attendance: report.attendance.map((img, i) => bufferToBase64(img, `attendance[${i}]`)),
+        permissionImage: bufferToBase64(report.permissionImage, 'permissionImage'),
+        feedback: report.feedback.map((fb, i) => ({
+          question: String(fb.question || ''),
+          answer: String(fb.answer || ''),
+          analytics: bufferToBase64(fb.analytics, `feedback[${i}].analytics`)
+        })),
+        photographs: report.photographs.map((img, i) => bufferToBase64(img, `photographs[${i}]`))
+      }));
+      console.log('Sending reports:', { count: reportsData.length, userId: req.user.userId, role: req.user.role });
+      return res.status(200).json(reportsData);
+    }
   } catch (error) {
-    console.error('Error fetching report:', {
+    console.error('Error fetching reports:', {
       message: error.message,
       stack: error.stack,
     });
@@ -251,47 +293,18 @@ const getReports = async (req, res) => {
 
 const getReportsByDepartment = async (req, res) => {
   try {
-    const department = req.user?.department;
-    console.log("User department:", department);
-    if (!department) {
-      console.error("User department not found in request");
-      return res.status(400).json({ message: "User department not found" });
-    }
+    const department = req.user.department;
+    console.log("User department:", department); 
 
     const reports = await Report.find({ department })
-      .select("eventName academicYear organizedBy createdAt") // only necessary fields
+      .populate('department', 'name')
+      .select("eventName academicYear organizedBy createdAt")
       .sort({ createdAt: -1 });
-
     console.log("Found reports:", reports.length);
 
     res.status(200).json(reports);
   } catch (error) {
     console.error("Error fetching department reports:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-const deleteReport = async (req, res) => {
-  try {
-    const reportId = req.params.id;
-
-    if (!isValidObjectId(reportId)) {
-      return res.status(400).json({ message: "Invalid report ID" });
-    }
-
-    let query = { _id: reportId };
-    if (req.user.role !== 'office') {
-      query.createdBy = req.user.userId;
-    }
-    const deletedReport = await Report.findOneAndDelete(query);
-
-    if (!deletedReport) {
-      return res.status(404).json({ message: "Report not found or unauthorized" });
-    }
-
-    res.status(200).json({ message: "Report deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting report:", error.message);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -315,6 +328,30 @@ const getAllReports = async (req, res) => {
   }
 };
 
+const deleteReport = async (req, res) => {
+  try {
+    const reportId = req.params.id;
+
+    if (!mongoose.isValidObjectId(reportId)) {
+      return res.status(400).json({ message: "Invalid report ID" });
+    }
+
+    const deletedReport = await Report.findOneAndDelete({
+      _id: reportId,
+      createdBy: req.user.userId,
+    });
+
+    if (!deletedReport) {
+      return res.status(404).json({ message: "Report not found or unauthorized" });
+    }
+
+    res.status(200).json({ message: "Report deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting report:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const updateReport = async (req, res) => {
   const reportId = req.params.id;
 
@@ -334,183 +371,138 @@ const updateReport = async (req, res) => {
       eventName,
       tenure,
       date,
+      dateFrom,
+      dateTo,
       timeFrom,
       timeTo,
       venue,
       objectives,
       outcomes,
+      studentCoordinators,
+      facultyCoordinators,
       totalParticipants,
       femaleParticipants,
       maleParticipants,
       eventType,
+      customEventType,
       summary,
       speakers,
-      feedback,
-     posterBase64,
-      permissionImageBase64,
-      attendanceBase64,
-      photographsBase64,...otherFields  // array of base64 strings for photographs to keep
+      feedback
     } = req.body;
 
-    // Update simple fields
+    // Validate required fields
+    if (!eventName || !venue || !organizedBy || !totalParticipants || !timeFrom || !timeTo) {
+      throw new Error('Missing required fields: Event Name, Venue, Organized By, Total Participants, Time From, Time To');
+    }
+    if (tenure === '1 Day' && !date) {
+      throw new Error('Date is required for single-day events');
+    }
+    if (tenure === 'Multiple Days' && (!dateFrom || !dateTo)) {
+      throw new Error('Date From and Date To are required for multiple-day events');
+    }
+
+    // Parse JSON fields
+    const parsedFeedback = feedback ? JSON.parse(feedback || "[]") : [];
+    const parsedObjectives = objectives ? JSON.parse(objectives || "[]") : [];
+    const parsedOutcomes = outcomes ? JSON.parse(outcomes || "[]") : [];
+    const parsedStudentCoordinators = studentCoordinators ? JSON.parse(studentCoordinators || "[]") : [];
+    const parsedFacultyCoordinators = facultyCoordinators ? JSON.parse(facultyCoordinators || "[]") : [];
+    const parsedSpeakers = speakers ? JSON.parse(speakers || "[]") : [];
+
+    // Preserve existing feedback entries, updating only provided ones
+    const mergedFeedback = existingReport.feedback.map((existingFb, index) => {
+      const newFb = parsedFeedback[index];
+      if (newFb) {
+        return {
+          question: newFb.question || existingFb.question || '',
+          answer: newFb.answer || existingFb.answer || '',
+          analytics: existingFb.analytics // Preserve existing analytics
+        };
+      }
+      return existingFb; // Keep unchanged feedback entries
+    });
+
+    // Append any new feedback entries beyond existing length
+    if (parsedFeedback.length > existingReport.feedback.length) {
+      for (let i = existingReport.feedback.length; i < parsedFeedback.length; i++) {
+        mergedFeedback.push({
+          question: parsedFeedback[i].question || '',
+          answer: parsedFeedback[i].answer || '',
+          analytics: null
+        });
+      }
+    }
+
+    // Update report fields
     existingReport.academicYear = academicYear;
     existingReport.organizedBy = organizedBy;
     existingReport.eventName = eventName;
     existingReport.tenure = tenure;
-    existingReport.date = date;
+    existingReport.date = tenure === '1 Day' ? date : null;
+    existingReport.dateFrom = tenure === 'Multiple Days' ? dateFrom : null;
+    existingReport.dateTo = tenure === 'Multiple Days' ? dateTo : null;
     existingReport.timeFrom = timeFrom;
     existingReport.timeTo = timeTo;
     existingReport.venue = venue;
+    existingReport.objectives = parsedObjectives;
+    existingReport.outcomes = parsedOutcomes;
+    existingReport.studentCoordinators = parsedStudentCoordinators;
+    existingReport.facultyCoordinators = parsedFacultyCoordinators;
     existingReport.totalParticipants = totalParticipants;
     existingReport.femaleParticipants = femaleParticipants;
     existingReport.maleParticipants = maleParticipants;
     existingReport.eventType = eventType;
+    existingReport.customEventType = customEventType || '';
     existingReport.summary = summary;
+    existingReport.speakers = parsedSpeakers;
+    existingReport.feedback = mergedFeedback;
 
-    // Parse JSON fields safely
-    existingReport.objectives = JSON.parse(objectives || "[]");
-    existingReport.outcomes = JSON.parse(outcomes || "[]");
-    existingReport.speakers = speakers ? JSON.parse(speakers) : [];
-    existingReport.feedback = feedback ? JSON.parse(feedback) : [];
-
-   
-if (posterBase64) {
-      existingReport.poster = Buffer.from(posterBase64.split(",")[1], "base64");
-    }
-
-    // Update permission image
-    if (permissionImageBase64) {
-      existingReport.permissionImage = Buffer.from(permissionImageBase64.split(",")[1], "base64");
-    }
-
-    // ===== Modified Attendance Logic =====
-    if (Array.isArray(attendanceBase64)) {
-      const existingAttendanceBase64 = existingReport.attendance.map(buf =>
-        `data:image/png;base64,${buf.toString("base64")}`
-      );
-
-      // Keep only the files still in attendanceBase64
-      existingReport.attendance = existingAttendanceBase64
-        .filter(b64 => attendanceBase64.includes(b64))
-        .map(b64 => Buffer.from(b64.split(",")[1], "base64"));
-    }
-
-    // ===== Modified Photographs Logic =====
-    if (Array.isArray(photographsBase64)) {
-      const existingPhotographsBase64 = existingReport.photographs.map(buf =>
-        `data:image/png;base64,${buf.toString("base64")}`
-      );
-
-      // Keep only the files still in photographsBase64
-      existingReport.photographs = existingPhotographsBase64
-        .filter(b64 => photographsBase64.includes(b64))
-        .map(b64 => Buffer.from(b64.split(",")[1], "base64"));
-    }
-
-    // ===== Append new uploaded files =====
+    // Handle optional file updates
     if (req.files && req.files.length > 0) {
+      const feedbackAnalytics = {};
       for (const file of req.files) {
         const { fieldname, buffer } = file;
-
-        if (fieldname === "attendance" || fieldname === "attendance[]") {
+        if (fieldname === "poster") {
+          existingReport.poster = buffer;
+        } else if (fieldname === "permissionImage") {
+          existingReport.permissionImage = buffer;
+        } else if (fieldname === "attendance" || fieldname === "attendance[]") {
           existingReport.attendance.push(buffer);
         } else if (fieldname === "photographs" || fieldname === "photographs[]") {
           existingReport.photographs.push(buffer);
-        } else if (fieldname.startsWith("feedbackAnalytics-")) {
-          const idx = parseInt(fieldname.split("-")[1], 10);
-          if (!isNaN(idx) && existingReport.feedback[idx]) {
-            existingReport.feedback[idx].analytics = buffer;
-          }
+        } else if (fieldname.startsWith('feedbackAnalytics-')) {
+          const index = parseInt(fieldname.split('-')[1], 10);
+          feedbackAnalytics[index] = buffer;
         }
       }
+      // Update feedback analytics only for specified indices
+      if (Object.keys(feedbackAnalytics).length > 0) {
+        existingReport.feedback = existingReport.feedback.map((fb, i) => ({
+          ...fb,
+          analytics: feedbackAnalytics[i] !== undefined ? feedbackAnalytics[i] : fb.analytics
+        }));
+      }
     }
-    if (posterBase64) {
-  existingReport.poster = Buffer.from(posterBase64.split(",")[1], "base64");
-} else if (req.files && req.files.length > 0) {
-  const posterFile = req.files.find(f => f.fieldname === "poster");
-  if (posterFile) {
-    existingReport.poster = posterFile.buffer;
-  }
-}
 
-// Handle Permission Image
-if (permissionImageBase64) {
-  existingReport.permissionImage = Buffer.from(permissionImageBase64.split(",")[1], "base64");
-} else if (req.files && req.files.length > 0) {
-  const permissionFile = req.files.find(f => f.fieldname === "permissionImage");
-  if (permissionFile) {
-    existingReport.permissionImage = permissionFile.buffer;
-  }
-}
-
-    // ===== Keep your rest logic unchanged =====
-    Object.keys(otherFields).forEach(key => {
-      existingReport[key] = otherFields[key];
+    console.log('Updating report:', {
+      reportId,
+      studentCoordinators: existingReport.studentCoordinators,
+      facultyCoordinators: existingReport.facultyCoordinators,
+      customEventType: existingReport.customEventType,
+      feedback: existingReport.feedback.map(fb => ({
+        question: fb.question,
+        answer: fb.answer,
+        hasAnalytics: !!fb.analytics
+      }))
     });
 
     await existingReport.save();
-    res.json({ message: "Report updated successfully", report: existingReport });
-
+    res.status(200).json({ message: "Report updated successfully" });
   } catch (error) {
-    console.error("Error updating report:", error);
-    res.status(500).json({ error: "Failed to update report" });
+    console.error("Error updating report:", error.message);
+    res.status(500).json({ message: "Server error while updating report" });
   }
 };
-
-const removeImage = async (req, res) => {
-  try {
-    const { reportId } = req.params;
-    const { field, imageUrl, index } = req.body; 
-    // field can be: "poster", "permissionImage", "attendance", "photographs"
-     console.log("🛠 Remove image request:", { reportId, field, imageUrl, index }); // 🔹
-
-    const report = await Report.findById(reportId);
-    if (!report) {
-      return res.status(404).json({ message: "Report not found" });
-    }
-     console.log("Before delete:", report[field]);
-
-    if (["poster", "permissionImage"].includes(field)) {
-      // Single image field (string)
-      report[field] = null;
-    } 
-    else if (["attendance", "photographs"].includes(field)) {
-  const { index } = req.body; // expect index from frontend
-  if (index === undefined) {
-    return res.status(400).json({ error: "Index is required for multi-image fields" });
-  }
-  if (index < 0 || index >= report[field].length) {
-    return res.status(400).json({ error: "Invalid index" });
-  }
-  report[field].splice(index, 1); // remove by index
-}
-
-    else {
-      return res.status(400).json({ message: "Invalid field name" });
-    }
-     console.log("After delete:", report[field]);
-
-    // Optional: delete file from local storage (only for disk storage)
-    if (imageUrl && typeof imageUrl === "string" && 
-        !imageUrl.startsWith("data:") && !imageUrl.includes("http")) {
-      const filePath = path.join(__dirname, "../uploads", path.basename(imageUrl));
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-
-    await report.save();
-    const updated = await Report.findById(reportId);
-    console.log(`Updated ${field} length:`, updated[field]?.length);
-
-
-    res.status(200).json({ message: "Image removed successfully", report });
-  } catch (err) {
-    console.error("Error removing image:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
 exports.getMinimalReports = async (req, res) => {
   try {
     const reports = await Report.find({}, "eventName department eventDate")
@@ -573,18 +565,8 @@ const getMinimalReports = async (req, res) => {
   }
 };
 
-
-
-
-module.exports = {
-  createReport,
-  getReports,
-  getReportsByDepartment,
-  deleteReport,
-  updateReport,
-  getAllReports,
-  removeImage,
+module.exports = { createReport, getReports, getReportsByDepartment, deleteReport, updateReport, getAllReports,
   getMinimalReports,
   searchMinimalReports,
-  getAnnualReports,
-};
+  getAnnualReports,};
+

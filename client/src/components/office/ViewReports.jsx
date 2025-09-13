@@ -1,134 +1,180 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
-import { FiDownload, FiTrash2 } from "react-icons/fi";
+import { AuthContext } from "../../context/AuthContext";
 import { generateReportPDF } from "../../utils/generateReportPDF";
-import "../../styles/viewreports.css";
+import "../../styles/ViewReports.css";
 
-const ViewReports = () => {
+function ViewReports() {
+  const { user } = useContext(AuthContext) || {};
   const [reports, setReports] = useState([]);
+  const [filteredReports, setFilteredReports] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [downloadingReportId, setDownloadingReportId] = useState(null);
 
-  useEffect(() => { 
-    const fetchReports = async () => {
+  useEffect(() => {
+    async function fetchReports() {
       try {
+        setIsLoading(true);
+        const token = localStorage.getItem("token");
+        if (!token) throw new Error("No authentication token found.");
+
+        // Fetch reports
         const res = await axios.get("http://localhost:3001/api/reports/all", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
+        if (!Array.isArray(res.data)) {
+          throw new Error("Invalid response format: Expected an array of reports.");
+        }
         setReports(res.data);
-      } catch (error) {
-        console.error("Failed to fetch reports:", error);
+        setFilteredReports(res.data);
+
+        // Extract unique department names for filter (for office role)
+        if (user?.role === "office") {
+          const deptNames = [...new Set(res.data.map(report => report.department?.name || report.department || "N/A"))];
+          setDepartments(deptNames);
+        }
+
+        console.log("Fetched reports:", res.data.length, "reports");
+      } catch (err) {
+        console.error("Error fetching reports:", err.message, err.response?.data);
+        setError(`Failed to load reports: ${err.response?.data?.error || err.message}`);
+      } finally {
+        setIsLoading(false);
       }
-    };
-
+    }
     fetchReports();
-   
-  }, []);
+  }, [user?.role]);
 
-  const downloadReport = async (id) => {
+  useEffect(() => {
+    // Filter reports based on search term and selected department
+    const filtered = reports.filter(report => {
+      const matchesSearch = report.eventName?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+      const matchesDepartment = selectedDepartment
+        ? (report.department?.name || report.department || "N/A") === selectedDepartment
+        : true;
+      return matchesSearch && matchesDepartment;
+    });
+    setFilteredReports(filtered);
+  }, [searchTerm, selectedDepartment, reports]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleDepartmentChange = (e) => {
+    setSelectedDepartment(e.target.value || "");
+  };
+
+  const handleDownload = async (reportId) => {
+    setDownloadingReportId(reportId);
+    setError("");
+    setSuccess("");
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(`http://localhost:3001/api/reports?reportId=${id}`, {
+      if (!token) throw new Error("No authentication token found.");
+      const res = await axios.get(`http://localhost:3001/api/reports?reportId=${reportId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      const reportData = res.data;
-      await generateReportPDF(reportData);
-    } catch (err) {
-      console.error("Download failed:", err);
-      alert("Failed to download PDF. Please try again.");
-    }
-  };
-
-  const deleteReport = async (id) => {
-    const confirmed = window.confirm("Are you sure you want to delete this report?");
-    if (!confirmed) return;
-
-    try {
-      await axios.delete(`http://localhost:3001/api/reports/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+      if (!res.data || Object.keys(res.data).length === 0) {
+        throw new Error("Invalid or empty report data received from server.");
+      }
+      console.log("Report data for PDF:", {
+        reportId,
+        eventName: res.data.eventName,
+        department: res.data.department?.name || res.data.department,
       });
-
-      setReports((prevReports) => prevReports.filter((r) => r._id !== id));
-      alert("Report deleted successfully.");
+      await generateReportPDF(res.data);
+      setSuccess("PDF generated successfully!");
     } catch (err) {
-      console.error("Delete failed:", err);
-      alert("Failed to delete the report.");
+      console.error("Error generating PDF:", {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
+      setError(`Failed to generate PDF: ${err.message}`);
+    } finally {
+      setDownloadingReportId(null);
     }
   };
 
-  const filteredReports = reports.filter(
-    (report) =>
-      report.eventName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.academicYear.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.organizedBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (report.department?.toLowerCase() || "").includes(searchTerm.toLowerCase())
-  );
+  if (isLoading) {
+    return <div style={{ textAlign: "center", padding: 20, fontFamily: "Times New Roman", fontSize: "12px" }}>Loading reports...</div>;
+  }
 
   return (
-    <div className="view-report-container">
-      <div className="search-bar-container">
+    <div className="view-report">
+      <h2>Reports for {user?.department?.name || user?.department || "Department"}</h2>
+      {error && <div className="error" style={{ color: "red", fontSize: "14px", marginBottom: "10px" }}>{error}</div>}
+      {success && <div className="success" style={{ color: "green", fontSize: "14px", marginBottom: "10px" }}>{success}</div>}
+      
+      {/* Search and Filter Controls */}
+      <div className="report-controls">
         <input
           type="text"
-          placeholder="Search by event / department"
-          className="search-input"
+          placeholder="Search by event name..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={handleSearchChange}
+          className="search-bar"
+          style={{ fontFamily: "Times New Roman", fontSize: "12px", padding: "8px", marginRight: "10px" }}
         />
+        {user?.role === "office" && (
+          <select
+            value={selectedDepartment}
+            onChange={handleDepartmentChange}
+            className="department-filter"
+            style={{ fontFamily: "Times New Roman", fontSize: "12px", padding: "8px" }}
+          >
+            <option value="">All Departments</option>
+            {departments.map((dept, index) => (
+              <option key={index} value={dept}>{dept}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {filteredReports.length === 0 ? (
-        <p className="no-reports">No reports found.</p>
+        <p style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>No reports available.</p>
       ) : (
-        <div className="table-wrapper">
-          <table className="report-table">
-            <thead>
-              <tr>
-                <th>Event Name</th>
-                <th>Organized By</th>
-                <th>Academic Year</th>
-                <th>Department</th>
-                <th className="actions-header">Actions</th>
+        <table className="report-table">
+          <thead>
+            <tr>
+              <th>Event Name</th>
+              <th>Department</th>
+              <th>Organized By</th>
+              <th>Academic Year</th>
+              <th>Download</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredReports.map((report) => (
+              <tr key={report._id}>
+                <td>{report.eventName || "N/A"}</td>
+                <td>{report.department?.name || report.department || "N/A"}</td>
+                <td>{report.organizedBy || "N/A"}</td>
+                <td>{report.academicYear || "N/A"}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="download-btn"
+                    disabled={downloadingReportId === report._id}
+                    onClick={() => handleDownload(report._id)}
+                    style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+                  >
+                    {downloadingReportId === report._id ? "Generating..." : "Download PDF"}
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredReports.map((report) => (
-                <tr key={report._id}>
-                  <td>{report.eventName}</td>
-                  <td>{report.organizedBy}</td>
-                  <td>{report.academicYear}</td>
-                  <td>{report.department || "N/A"}</td>
-                  <td className="action-buttons-cell">
-                    <div className="action-buttons">
-                      <button
-                        onClick={() => downloadReport(report._id)}
-                        title="Download"
-                        aria-label="Download report"
-                        className="action-btn download-btn"
-                      >
-                        <FiDownload size={16} />
-                      </button>
-                      <button
-                        onClick={() => deleteReport(report._id)}
-                        title="Delete"
-                        aria-label="Delete report"
-                        className="action-btn delete-btn"
-                      >
-                        <FiTrash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
-};
+}
 
 export default ViewReports;
