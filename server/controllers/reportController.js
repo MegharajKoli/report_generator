@@ -512,6 +512,68 @@ exports.getMinimalReports = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch reports", error: err.message });
   }
 };
+
+const removeImage = async (req, res) => {
+  try {
+    const { reportId, field, index } = req.body;
+
+    // Validate report ID
+    if (!mongoose.isValidObjectId(reportId)) {
+      console.error("Invalid report ID:", reportId);
+      return res.status(400).json({ message: "Invalid report ID" });
+    }
+
+    // Find the report
+    const report = await Report.findOne({
+      _id: reportId,
+      createdBy: req.user.userId,
+    });
+
+    if (!report) {
+      console.error("Report not found or unauthorized:", { reportId, userId: req.user?.userId });
+      return res.status(404).json({ message: "Report not found or unauthorized" });
+    }
+
+    // Handle image removal based on field
+    if (field === "poster" || field === "permissionImage") {
+      // Remove single image
+      report[field] = null;
+      console.log(`Removed ${field} from report ${reportId}`);
+    } else if (field === "attendance" || field === "photographs") {
+      // Remove image from array at specified index
+      if (index < 0 || index >= report[field].length) {
+        console.error(`Invalid index ${index} for ${field} in report ${reportId}`);
+        return res.status(400).json({ message: `Invalid index for ${field}` });
+      }
+      report[field].splice(index, 1);
+      console.log(`Removed ${field}[${index}] from report ${reportId}`);
+    } else if (field === "feedback") {
+      // Remove analytics from feedback at specified index
+      if (index < 0 || index >= report.feedback.length) {
+        console.error(`Invalid index ${index} for feedback in report ${reportId}`);
+        return res.status(400).json({ message: "Invalid index for feedback" });
+      }
+      report.feedback[index].analytics = null;
+      console.log(`Removed feedback[${index}].analytics from report ${reportId}`);
+    } else {
+      console.error(`Invalid field ${field} for report ${reportId}`);
+      return res.status(400).json({ message: "Invalid field specified" });
+    }
+
+    // Save the updated report
+    await report.save();
+    console.log(`Report ${reportId} updated successfully after removing ${field}`);
+
+    res.status(200).json({ message: "Image removed successfully" });
+  } catch (error) {
+    console.error("Error removing image:", {
+      message: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ message: "Server error while removing image" });
+  }
+};
+
 // ✅ Search/filter minimal reports
 // 🔎 Search reports (by eventName, department, academicYear)
 const searchMinimalReports = async (req, res) => {
@@ -565,7 +627,7 @@ const getMinimalReports = async (req, res) => {
   }
 };
 
-module.exports = { createReport, getReports, getReportsByDepartment, deleteReport, updateReport, getAllReports,
+module.exports = { createReport, getReports, getReportsByDepartment, deleteReport, updateReport, getAllReports,removeImage,
   getMinimalReports,
   searchMinimalReports,
   getAnnualReports,};

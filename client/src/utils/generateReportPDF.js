@@ -229,8 +229,6 @@ export const generateReportPDF = async (reportData) => {
     addTextSection(`Type: ${effectiveEventType || 'N/A'}`, 5, 12, 'bold', 'left');
     currentY += 10;
 
-    doc.addPage();
-    currentY = marginTop;
 
     // Feedback
     if (reportData.feedback) {
@@ -253,28 +251,71 @@ export const generateReportPDF = async (reportData) => {
           });
           const feedbackData = fb.__parentArray && fb.__parentArray[0] ? fb.__parentArray[0] : fb;
           if (feedbackData.question != null || feedbackData.answer != null || fb.analytics) {
-            addTextSection(`Question ${index + 1}: ${feedbackData.question != null ? feedbackData.question : 'N/A'}`, 5, 12, 'normal', 'justify');
-            addTextSection(`Answer: ${feedbackData.answer != null ? feedbackData.answer : 'N/A'}`, 5, 12, 'normal', 'justify');
+            const questionLines = doc.splitTextToSize(feedbackData.question != null ? feedbackData.question : 'N/A', maxWidth - 5);
+            const answerLines = doc.splitTextToSize(feedbackData.answer != null ? feedbackData.answer : 'N/A', maxWidth - 5);
+            const totalTextHeight = (questionLines.length + answerLines.length) * lineHeight + 5;
+            let analyticsImgHeight = 0;
+            let analyticsImgWidth = 0;
+
             if (fb.analytics) {
-              addNewPageIfNeeded(smallImageHeight + 10);
-              addTextSection(`Feedback Analytics ${index + 1}:`, 5, 12, 'italic', 'center');
-              try {
-                const analyticsBase64 = validateBase64(fb.analytics);
-                if (analyticsBase64) {
-                  const format = analyticsBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-                  doc.addImage(analyticsBase64, format, pageWidth / 2 - analyticsWidth / 2, currentY, analyticsWidth, analyticsHeight);
-                  currentY += analyticsHeight + 5;
-                } else {
-                  addTextSection('No valid feedback analytics image available', 5, 10, 'normal', 'center');
+              const img = new Image();
+              img.src = validateBase64(fb.analytics);
+              await new Promise((resolve, reject) => {
+                img.onload = () => {
+                  const aspectRatio = img.width / img.height;
+                  analyticsImgHeight = Math.min(analyticsHeight, analyticsWidth / aspectRatio);
+                  analyticsImgWidth = aspectRatio * analyticsImgHeight;
+                  resolve();
+                };
+                img.onerror = reject;
+              });
+            }
+
+            const totalHeight = totalTextHeight + analyticsImgHeight + 10;
+            if (currentY + totalHeight <= pageHeight - marginBottom) {
+              addTextSection(`Question ${index + 1}: ${feedbackData.question != null ? feedbackData.question : 'N/A'}`, 5, 12, 'normal', 'justify');
+              addTextSection(`Answer: ${feedbackData.answer != null ? feedbackData.answer : 'N/A'}`, 5, 12, 'normal', 'justify');
+              if (fb.analytics) {
+                try {
+                  const analyticsBase64 = validateBase64(fb.analytics);
+                  if (analyticsBase64) {
+                    const format = analyticsBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+                    doc.addImage(analyticsBase64, format, pageWidth / 2 - analyticsImgWidth / 2, currentY, analyticsImgWidth, analyticsImgHeight);
+                    currentY += analyticsImgHeight + 5;
+                  } else {
+                    addTextSection('No valid feedback analytics image available', 5, 10, 'normal', 'center');
+                    currentY += 5;
+                  }
+                } catch (err) {
+                  console.error(`Error adding feedback analytics image ${index + 1}:`, err.message);
+                  addTextSection('Error loading feedback analytics image', 5, 10, 'normal', 'center');
                   currentY += 5;
                 }
-              } catch (err) {
-                console.error(`Error adding feedback analytics image ${index + 1}:`, err.message);
-                addTextSection('Error loading feedback analytics image', 5, 10, 'normal', 'center');
-                currentY += 5;
+              }
+            } else {
+              doc.addPage();
+              currentY = marginTop;
+              addTextSection(`Question ${index + 1}: ${feedbackData.question != null ? feedbackData.question : 'N/A'}`, 5, 12, 'normal', 'justify');
+              addTextSection(`Answer: ${feedbackData.answer != null ? feedbackData.answer : 'N/A'}`, 5, 12, 'normal', 'justify');
+              if (fb.analytics) {
+                try {
+                  const analyticsBase64 = validateBase64(fb.analytics);
+                  if (analyticsBase64) {
+                    const format = analyticsBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+                    doc.addImage(analyticsBase64, format, pageWidth / 2 - analyticsImgWidth / 2, currentY, analyticsImgWidth, analyticsImgHeight);
+                    currentY += analyticsImgHeight + 5;
+                  } else {
+                    addTextSection('No valid feedback analytics image available', 5, 10, 'normal', 'center');
+                    currentY += 5;
+                  }
+                } catch (err) {
+                  console.error(`Error adding feedback analytics image ${index + 1}:`, err.message);
+                  addTextSection('Error loading feedback analytics image', 5, 10, 'normal', 'center');
+                  currentY += 5;
+                }
               }
             }
-            currentY += 5;
+            currentY += 10;
           }
         }
       }
@@ -285,6 +326,8 @@ export const generateReportPDF = async (reportData) => {
       addTextSection('Feedback: None', 0, 14, 'bold', 'center');
       currentY += 10;
     }
+
+
 
     doc.addPage();
     currentY = marginTop;

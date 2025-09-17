@@ -53,7 +53,7 @@ function ViewReports() {
   useEffect(() => {
     // Filter reports based on search term and selected department
     const filtered = reports.filter(report => {
-      const matchesSearch = report.eventName?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+      const matchesSearch = report.eventName?.toLowerCase().includes(searchTerm.toLowerCase()) || report.organizedBy?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
       const matchesDepartment = selectedDepartment
         ? (report.department?.name || report.department || "N/A") === selectedDepartment
         : true;
@@ -103,7 +103,21 @@ function ViewReports() {
   };
 
   if (isLoading) {
-    return <div style={{ textAlign: "center", padding: 20, fontFamily: "Times New Roman", fontSize: "12px" }}>Loading reports...</div>;
+    return (
+      <div className="loading-container" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+        <div className="loading-spinner" style={{
+          border: "4px solid #f3f3f3",
+          borderTop: "4px solid #3498db",
+          borderRadius: "50%",
+          width: "40px",
+          height: "40px",
+          animation: "spin 1s linear infinite",
+        }}></div>
+        <p style={{ fontFamily: "Times New Roman", fontSize: "14px", marginTop: "10px" }}>
+          Please wait while we load reports
+        </p>
+      </div>
+    );
   }
 
   return (

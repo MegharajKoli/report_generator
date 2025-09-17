@@ -12,7 +12,8 @@
 }
 
 .logo {
-  height: 50px;
+  width:3rem;
+  height: auto;
 }
 
 .login-btn {

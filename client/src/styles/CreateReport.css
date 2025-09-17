@@ -1,9 +1,11 @@
 .create-report, .create-report label, .create-report input, .create-report textarea, .create-report select, .create-report button, .create-report h2 {
   color: black !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 .create-report input, .create-report textarea, .create-report select {
   border-color: black !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 .create-report .form-group label {
@@ -12,6 +14,7 @@
 
 .create-report {
   max-width: 800px;
+  min-width: 600px;
   margin: 0 auto;
   padding: 20px;
   font-family: 'Times New Roman', Times, serif;
@@ -268,3 +271,40 @@ p{
   color: black;
 }
 
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: #333;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.form-group img{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px; /* Reduced gap for a tighter layout */
+  margin-top: 10px; /* Add margin to separate from input */
+  justify-content: flex-start; /* Align images to the start */
+}
+
+.form-group img {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative; /* For positioning the remove button */
+  width: 100px; /* Fixed width for consistency */
+}

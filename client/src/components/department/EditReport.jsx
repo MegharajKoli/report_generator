@@ -4,7 +4,6 @@ import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import "../../styles/CreateReport.css";
-import "../../styles/EditReport.css";
 
 
 
@@ -258,63 +257,101 @@ function EditReport() {
     });
   };
 
-  const removeFile = (field, index = null, isExisting = false) => {
-    if (field === "poster" || field === "permissionImage") {
-      setFormData(prev => ({ ...prev, [field]: null }));
-      setPreviews(prev => {
-        if (prev[field]) URL.revokeObjectURL(prev[field]);
-        return { ...prev, [field]: null };
-      });
-      setExistingFiles(prev => ({ ...prev, [field]: null }));
-      console.log(`Removed ${field}`);
-    } else if (field === "feedback") {
-      const updatedFeedback = [...formData.feedback];
-      updatedFeedback[index] = { ...updatedFeedback[index], analytics: null };
-      setFormData({ ...formData, feedback: updatedFeedback });
-      setPreviews(prev => {
-        const updatedFeedbackPreviews = [...prev.feedback];
-        if (updatedFeedbackPreviews[index]) URL.revokeObjectURL(updatedFeedbackPreviews[index]);
-        updatedFeedbackPreviews[index] = null;
-        return { ...prev, feedback: updatedFeedbackPreviews };
-      });
-      setExistingFiles(prev => ({
-        ...prev,
-        feedback: [
-          ...prev.feedback.slice(0, index),
-          null,
-          ...prev.feedback.slice(index + 1),
-        ],
-      }));
-      console.log(`Removed feedback analytics[${index}]`);
-    } else {
-      // Handle multiple file fields (attendance, photographs)
-      if (isExisting) {
-        setExistingFiles(prev => {
-          const updatedFiles = [...prev[field]];
-          updatedFiles.splice(index, 1);
-          return { ...prev, [field]: updatedFiles };
+  const removeFile = async (field, index = null, isExisting = false) => {
+    try {
+      // Local state updates
+      if (field === "poster" || field === "permissionImage") {
+        setFormData(prev => ({ ...prev, [field]: null }));
+        setPreviews(prev => {
+          if (prev[field]) URL.revokeObjectURL(prev[field]);
+          return { ...prev, [field]: null };
         });
-        console.log(`Removed existing ${field}[${index}]`);
+        setExistingFiles(prev => ({ ...prev, [field]: null }));
+        console.log(`Removed ${field} locally`);
+      } else if (field === "feedback") {
+        const updatedFeedback = [...formData.feedback];
+        updatedFeedback[index] = { ...updatedFeedback[index], analytics: null };
+        setFormData({ ...formData, feedback: updatedFeedback });
+        setPreviews(prev => {
+          const updatedFeedbackPreviews = [...prev.feedback];
+          if (updatedFeedbackPreviews[index]) URL.revokeObjectURL(updatedFeedbackPreviews[index]);
+          updatedFeedbackPreviews[index] = null;
+          return { ...prev, feedback: updatedFeedbackPreviews };
+        });
+        setExistingFiles(prev => ({
+          ...prev,
+          feedback: [
+            ...prev.feedback.slice(0, index),
+            null,
+            ...prev.feedback.slice(index + 1),
+          ],
+        }));
+        console.log(`Removed feedback analytics[${index}] locally`);
       } else {
-        // Adjust index for new images, accounting for existingFiles length
-        const adjustedIndex = index - existingFiles[field].length;
-        if (adjustedIndex >= 0 && adjustedIndex < previews[field].length) {
-          setFormData(prev => {
+        // Handle multiple file fields (attendance, photographs)
+        if (isExisting) {
+          setExistingFiles(prev => {
             const updatedFiles = [...prev[field]];
-            updatedFiles.splice(adjustedIndex, 1);
+            updatedFiles.splice(index, 1);
             return { ...prev, [field]: updatedFiles };
           });
-          setPreviews(prev => {
-            const updatedPreviews = [...prev[field]];
-            if (updatedPreviews[adjustedIndex]) URL.revokeObjectURL(updatedPreviews[adjustedIndex]);
-            updatedPreviews.splice(adjustedIndex, 1);
-            return { ...prev, [field]: updatedPreviews };
-          });
-          console.log(`Removed new ${field}[${adjustedIndex}]`);
+          console.log(`Removed existing ${field}[${index}] locally`);
         } else {
-          console.warn(`Invalid index ${index} for new ${field} removal`);
+          const adjustedIndex = index - existingFiles[field].length;
+          if (adjustedIndex >= 0 && adjustedIndex < formData[field].length) {
+            setFormData(prev => {
+              const updatedFiles = [...prev[field]];
+              updatedFiles.splice(adjustedIndex, 1);
+              return { ...prev, [field]: updatedFiles };
+            });
+            setPreviews(prev => {
+              const updatedPreviews = [...prev[field]];
+              if (updatedPreviews[adjustedIndex]) URL.revokeObjectURL(updatedPreviews[adjustedIndex]);
+              updatedPreviews.splice(adjustedIndex, 1);
+              return { ...prev, [field]: updatedPreviews };
+            });
+            console.log(`Removed new ${field}[${adjustedIndex}] locally`);
+          } else {
+            console.warn(`Invalid index ${index} for new ${field} removal`);
+            return;
+          }
         }
       }
+
+      // Send request to backend if the image is in existingFiles
+      const isExistingImage = isExisting || (
+        (field === 'poster' && existingFiles.poster) ||
+        (field === 'permissionImage' && existingFiles.permissionImage) ||
+        (['attendance', 'photographs'].includes(field) && index < existingFiles[field].length) ||
+        (field === 'feedback' && existingFiles.feedback[index])
+      );
+
+      if (isExistingImage) {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setError("No authentication token found.");
+          return;
+        }
+
+        const response = await axios.post(
+          "http://localhost:3001/api/reports/remove-image",
+          { reportId, field, index: field === "poster" || field === "permissionImage" ? null : index },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        console.log(`Successfully removed ${field}${index !== null ? `[${index}]` : ""} from backend:`, response.data);
+      } else {
+        console.log(`No backend request needed for ${field}${index !== null ? `[${index}]` : ""} (new image)`);
+      }
+    } catch (error) {
+      console.error(`Error removing ${field}${index !== null ? `[${index}]` : ""}:`, {
+        message: error.message,
+        response: error.response?.data,
+      });
+      setError(`Failed to remove ${field}: ${error.response?.data?.message || error.message}`);
     }
   };
 
@@ -423,14 +460,19 @@ function EditReport() {
     navigate("/dashboard-dept/view-report");
   };
 
-  if (isLoading) {
-    return <div style={{ textAlign: "center", padding: 20 }}>Loading report data...</div>;
+   if (isLoading) {
+    return (
+      <div className="loading-spinner" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '200px' }}>
+        <p style={{ fontFamily: "Times New Roman", fontSize: "14px", marginBottom: "10px" }}>Loading report data...</p>
+        <div className="spinner"></div>
+      </div>
+    );
   }
 
   return (
     <div className="reportcreate">
       <div className="create-report">
-        <h2>Edit Report for {formData.department || "Department"}</h2>
+        <h2>Edit Your Report</h2>
         {error && <div className="error" style={{ color: "red", fontSize: "14px", marginBottom: "10px" }}>{error}</div>}
         {success && <div className="success" style={{ color: "green", fontSize: "14px", marginBottom: "10px" }}>{success}</div>}
         {showModal && (

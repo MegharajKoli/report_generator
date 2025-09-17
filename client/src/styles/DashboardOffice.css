@@ -12,13 +12,13 @@
   body {
     font-family: Arial, sans-serif;
     background-color: #fff;
-    color: #ffffff !important;
+    color: #ffffff;
   }
   
 
 
   
-  .container.dashboard-mode {
+  .container {
     display: flex;
     height: calc(100vh - 100px);
   }
@@ -142,23 +142,6 @@
     padding-top: 20px;
   }
 
-
-  /*view reports page styling*/
-  .container.view-bg{
-    padding: 60px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    flex:1;
-    background-color:azure;
-  }
-
-  /*download reports page styling*/
-  .container.download-bg{
-    padding: 60px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    flex:1;
-    background-color:beige;
+  .right-panel #cal{
+    height: 10rem;
   }

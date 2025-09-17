@@ -401,7 +401,7 @@ function CreateReport() {
   return (
     <div className="reportcreate">
       <div className="create-report">
-        <h2>Create Report for {formData.department || 'Department'}</h2>
+        <h2>Create Report </h2>
         {error && <div className="error" style={{ color: 'red', fontSize: '14px', marginBottom: '10px' }}>{error}</div>}
         {success && <div className="success" style={{ color: 'green', fontSize: '14px', marginBottom: '10px' }}>{success}</div>}
         {downloadError && <div className="error" style={{ color: 'red', fontSize: '14px', marginBottom: '10px' }}>{downloadError}</div>}

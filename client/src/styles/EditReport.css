@@ -4,6 +4,7 @@ body.edit-report-page {
 
 .edit-report {
   max-width: 800px;
+  min-width: 600px;
   margin: 0 auto;
   padding: 20px;
   background-color: #ffffff; /* white card */

@@ -110,6 +110,9 @@ router.put("/:id", authMiddleware, upload.any(), updateReport);
 router.get("/all", authMiddleware, getAllReports);
 router.get("/annual", getAnnualReports);
 
+// POST: Remove an image from a report
+router.post("/remove-image", authMiddleware, removeImage);
+
 
 
 router.get('/minimal', authMiddleware, getMinimalReports);

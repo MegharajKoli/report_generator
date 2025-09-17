@@ -8,6 +8,8 @@ const DownloadReport = () => {
   const [searchYear, setSearchYear] = useState("");
   const [searchOrg, setSearchOrg] = useState("");
   const [searchDept, setSearchDept] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [downloading, setDownloading] = useState({}); // Track downloading state for each button
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -19,6 +21,8 @@ const DownloadReport = () => {
         setReports(data);
       } catch (error) {
         console.error("Error fetching annual reports:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -29,7 +33,6 @@ const DownloadReport = () => {
   const filteredReports = reports.filter((report) => {
     const matchesDept = report.department?.toLowerCase().includes(searchDept.toLowerCase());
     const matchesEvent = searchYear ? report.academicYear === searchYear : true;
-
     const matchesOrg = report.organizedBy?.toLowerCase().includes(searchOrg.toLowerCase());
     return matchesDept && matchesEvent && matchesOrg;
   });
@@ -55,11 +58,41 @@ const DownloadReport = () => {
 
     const clubKey = `${report.organizedBy} - ${report.academicYear}`;
     if (!groupedByDept[deptKey][clubKey]) groupedByDept[deptKey][clubKey] = [];
-
     groupedByDept[deptKey][clubKey].push(report);
   });
-// 📌 Unique academic years for dropdown
-const academicYears = [...new Set(reports.map(r => r.academicYear))].sort().reverse();
+
+  // 📌 Unique academic years for dropdown
+  const academicYears = [...new Set(reports.map(r => r.academicYear))].sort().reverse();
+
+  // Handle download button click
+  const handleDownload = async (club, year, reports, clubKey) => {
+    setDownloading((prev) => ({ ...prev, [clubKey]: true }));
+    try {
+      await generateAnnualPDF(club, year, reports);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+    } finally {
+      setDownloading((prev) => ({ ...prev, [clubKey]: false }));
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="loading-container" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+        <div className="loading-spinner" style={{
+          border: "4px solid #f3f3f3",
+          borderTop: "4px solid #3498db",
+          borderRadius: "50%",
+          width: "40px",
+          height: "40px",
+          animation: "spin 1s linear infinite",
+        }}></div>
+        <p style={{ fontFamily: "Times New Roman", fontSize: "14px", marginTop: "10px" }}>
+          Please wait while we load reports
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="annual-reports-container">
@@ -75,18 +108,17 @@ const academicYears = [...new Set(reports.map(r => r.academicYear))].sort().reve
           onChange={(e) => setSearchDept(e.target.value)}
         />
         <select
-  className="search-bar"
-  value={searchYear}
-  onChange={(e) => setSearchYear(e.target.value)}
->
-  <option value="">All Academic Years</option>
-  {academicYears.map((year, idx) => (
-    <option key={idx} value={year}>
-      {year}
-    </option>
-  ))}
-</select>
-
+          className="search-bar"
+          value={searchYear}
+          onChange={(e) => setSearchYear(e.target.value)}
+        >
+          <option value="">All Academic Years</option>
+          {academicYears.map((year, idx) => (
+            <option key={idx} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
         <input
           type="text"
           placeholder="Search by Organization"
@@ -116,7 +148,7 @@ const academicYears = [...new Set(reports.map(r => r.academicYear))].sort().reve
                       <th>Title</th>
                       <th>Organized By</th>
                       <th>Academic Year</th>
-                      <th>Department</th> {/* ✅ Added Department column */}
+                      <th>Department</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -135,9 +167,10 @@ const academicYears = [...new Set(reports.map(r => r.academicYear))].sort().reve
                 <div className="download-container">
                   <button
                     className="download-btn"
-                    onClick={() => generateAnnualPDF(club, year, reports)}
+                    onClick={() => handleDownload(club, year, reports, clubYear)}
+                    disabled={downloading[clubYear]}
                   >
-                    Download {club} {year} Report
+                    {downloading[clubYear] ? "Generating..." : `Download ${club} ${year} Report`}
                   </button>
                 </div>
               </div>

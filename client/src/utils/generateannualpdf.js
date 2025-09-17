@@ -341,13 +341,41 @@ export const generateAnnualPDF = async (clubName, academicYear, reports) => {
                 const analyticsBase64 = validateBase64(base64Str, "image/png");
                 console.log(`Analytics image ${index + 1} base64:`, analyticsBase64?.substring(0, 50));
                 if (analyticsBase64) {
-                  const imgType = detectImageType(analyticsBase64);
-                  doc.addImage(analyticsBase64, imgType, pageWidth / 2 - analyticsWidth / 2, currentY, analyticsWidth, analyticsHeight);
-                  currentY += analyticsHeight + 5;
-                } else {
-                  addTextSection('No valid feedback analytics image available', 5, 10, 'normal', 'center');
-                  currentY += 5;
-                }
+                    const imgType = detectImageType(analyticsBase64);
+
+                    // Create Image object to get natural size
+                    const img = new Image();
+                    img.src = analyticsBase64;
+
+                    await new Promise((resolve, reject) => {
+                      img.onload = () => {
+                        const naturalWidth = img.width;
+                        const naturalHeight = img.height;
+
+                        // Maintain aspect ratio within given bounds
+                        let drawWidth = analyticsWidth;
+                        let drawHeight = (naturalHeight / naturalWidth) * drawWidth;
+
+                        if (drawHeight > analyticsHeight) {
+                          drawHeight = analyticsHeight;
+                          drawWidth = (naturalWidth / naturalHeight) * drawHeight;
+                        }
+
+                        // Center horizontally
+                        const xPos = pageWidth / 2 - drawWidth / 2;
+
+                        doc.addImage(analyticsBase64, imgType, xPos, currentY, drawWidth, drawHeight);
+                        currentY += drawHeight + 5;
+
+                        resolve();
+                      };
+                      img.onerror = reject;
+                    });
+                  } else {
+                    addTextSection('No valid feedback analytics image available', 5, 10, 'normal', 'center');
+                    currentY += 5;
+                  }
+
               } catch (err) {
                 console.error(`Error adding feedback analytics image ${index + 1}:`, err.message);
                 addTextSection('Error loading feedback analytics image', 5, 10, 'normal', 'center');
@@ -366,9 +394,9 @@ export const generateAnnualPDF = async (clubName, academicYear, reports) => {
       currentY += 10;
     }
 
-    doc.addPage();
+ doc.addPage();
     currentY = marginTop;
-
+    
     // Photographs
     if (report.photographs?.length > 0) {
       addNewPageIfNeeded(20);

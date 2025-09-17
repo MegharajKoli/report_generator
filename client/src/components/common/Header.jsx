@@ -34,7 +34,7 @@ function Header() {
       <header className="header">
         <img src="/wit_logo.png" alt="Logo" className="logo" />
         <h1>
-          {user?.role === "department" ? `${user.department} Department` : "Office User"}
+          {user?.role === "department" ? `${user.department} Department` : "Office Admin"}
         </h1>
 
         <button

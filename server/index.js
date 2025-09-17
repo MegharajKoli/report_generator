@@ -55,6 +55,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use('/api/reports', reportRoutes);
 
+
 // Start Server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

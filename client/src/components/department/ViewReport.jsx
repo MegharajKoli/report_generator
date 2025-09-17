@@ -3,15 +3,23 @@ import axios from "axios";
 import { FiDownload, FiEdit, FiTrash2 } from "react-icons/fi";
 import { generateReportPDF } from "../../utils/generateReportPDF";
 import { useNavigate } from "react-router-dom";
-import "../../styles/viewreports.css";  
+import "../../styles/viewreports.css";
 
 const ViewReport = () => {
   const [reports, setReports] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showFailureModal, setShowFailureModal] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [downloadingReportId, setDownloadingReportId] = useState(null);
+  const [loading, setLoading] = useState(false); // New loading state
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchReports = async () => {
+      setLoading(true); // Set loading to true before fetching
       try {
         const res = await axios.get("http://localhost:3001/api/reports/department", {
           headers: {
@@ -21,6 +29,8 @@ const ViewReport = () => {
         setReports(res.data);
       } catch (error) {
         console.error("Failed to fetch reports:", error);
+      } finally {
+        setLoading(false); // Set loading to false after fetching
       }
     };
 
@@ -28,6 +38,7 @@ const ViewReport = () => {
   }, []);
 
   const downloadReport = async (id) => {
+    setDownloadingReportId(id);
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get(`http://localhost:3001/api/reports?reportId=${id}`, {
@@ -38,7 +49,10 @@ const ViewReport = () => {
       await generateReportPDF(reportData);
     } catch (err) {
       console.error("Download failed:", err);
-      alert("Failed to download PDF. Please try again.");
+      setErrorMessage("Failed to download PDF. Please try again.");
+      setShowFailureModal(true);
+    } finally {
+      setDownloadingReportId(null);
     }
   };
 
@@ -46,23 +60,44 @@ const ViewReport = () => {
     navigate(`/dashboard-dept/edit-report/${id}`);
   };
 
-  const deleteReport = async (id) => {
-    const confirmed = window.confirm("Are you sure you want to delete this report?");
-    if (!confirmed) return;
+  const initiateDelete = (id) => {
+    setReportToDelete(id);
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!reportToDelete) return;
 
     try {
-      await axios.delete(`http://localhost:3001/api/reports/${id}`, {
+      await axios.delete(`http://localhost:3001/api/reports/${reportToDelete}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
 
-      setReports((prevReports) => prevReports.filter((r) => r._id !== id));
-      alert("Report deleted successfully.");
+      setReports((prevReports) => prevReports.filter((r) => r._id !== reportToDelete));
+      setShowConfirmModal(false);
+      setShowSuccessModal(true);
     } catch (err) {
       console.error("Delete failed:", err);
-      alert("Failed to delete the report.");
+      setErrorMessage("Failed to delete the report.");
+      setShowConfirmModal(false);
+      setShowFailureModal(true);
     }
+  };
+
+  const closeConfirmModal = () => {
+    setShowConfirmModal(false);
+    setReportToDelete(null);
+  };
+
+  const closeSuccessModal = () => {
+    setShowSuccessModal(false);
+    navigate("/dashboard-dept/view-report");
+  };
+
+  const closeFailureModal = () => {
+    setShowFailureModal(false);
   };
 
   const filteredReports = reports.filter(
@@ -84,7 +119,13 @@ const ViewReport = () => {
         />
       </div>
 
-      {filteredReports.length === 0 ? (
+      {loading ? (
+        <div className="loading-spinner">
+          <p>Loading reports...</p>
+          {/* Basic CSS spinner */}
+          <div className="spinner"></div>
+        </div>
+      ) : filteredReports.length === 0 ? (
         <p className="no-reports">No reports found.</p>
       ) : (
         <div className="table-wrapper">
@@ -107,6 +148,7 @@ const ViewReport = () => {
                     <div className="action-buttons">
                       <button
                         onClick={() => downloadReport(report._id)}
+                        disabled={downloadingReportId === report._id}
                         title="Download"
                         aria-label="Download report"
                         className="action-btn download-btn"
@@ -122,7 +164,7 @@ const ViewReport = () => {
                         <FiEdit size={16} />
                       </button>
                       <button
-                        onClick={() => deleteReport(report._id)}
+                        onClick={() => initiateDelete(report._id)}
                         title="Delete"
                         aria-label="Delete report"
                         className="action-btn delete-btn"
@@ -135,6 +177,50 @@ const ViewReport = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="modal">
+          <div className="modal-content" style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
+            <p>Are you sure you want to delete this report?</p>
+            <div className="modal-buttons">
+              <button onClick={confirmDelete} style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
+                Confirm
+              </button>
+              <button
+                onClick={closeConfirmModal}
+                style={{ fontFamily: "Times New Roman", fontSize: "12px", background: "green" }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="modal">
+          <div className="modal-content" style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
+            <p>Report Deleted Successfully.</p>
+            <button onClick={closeSuccessModal} style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Failure Modal */}
+      {showFailureModal && (
+        <div className="modal">
+          <div className="modal-content" style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
+            <p>{errorMessage}</p>
+            <button onClick={closeFailureModal} style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
+              Close
+            </button>
+          </div>
         </div>
       )}
     </div>
