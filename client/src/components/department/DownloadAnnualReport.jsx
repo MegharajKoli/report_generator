@@ -91,29 +91,35 @@ const DownloadAnnualReports = () => {
   }
 
   return (
-    <div className="annual-reports-container">
-      <h2>Annual Reports</h2>
+  <div className="annual-reports-container">
+    <h2>Annual Reports</h2>
 
-      {/* 🔍 Search */}
-      <div className="search">
-        <input
-          type="text"
-          placeholder="Search by Academic Year"
-          className="search-bar"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Search by Organization"
-          className="search-bar"
-          value={searchOrg}
-          onChange={(e) => setSearchOrg(e.target.value)}
-        />
-      </div>
+    {/* 🔍 Search */}
+    <div className="search">
+      <input
+        type="text"
+        placeholder="Search by Academic Year"
+        className="search-bar"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Search by Organization"
+        className="search-bar"
+        value={searchOrg}
+        onChange={(e) => setSearchOrg(e.target.value)}
+      />
+    </div>
 
-      {/* 📋 Grouped Reports */}
-      {Object.entries(groupedReports).map(([key, reports], idx) => {
+    {/* 🟢 NEW: Show message if no reports */}
+    {sortedReports.length === 0 ? (
+      <p style={{ textAlign: "center", marginTop: "20px", fontFamily: "Times New Roman", fontSize: "16px", color: "#555" }}>
+        No reports found
+      </p>
+    ) : (
+      /* 📋 Grouped Reports */
+      Object.entries(groupedReports).map(([key, reports], idx) => {
         const [club, year] = key.split(" - ");
         return (
           <div key={idx} className="report-group">
@@ -153,9 +159,11 @@ const DownloadAnnualReports = () => {
             </div>
           </div>
         );
-      })}
-    </div>
-  );
+      })
+    )}
+  </div>
+);
+
 };
 
 export default DownloadAnnualReports;

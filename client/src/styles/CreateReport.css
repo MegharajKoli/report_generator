@@ -293,18 +293,4 @@ p{
     transform: rotate(360deg);
   }
 }
-.form-group img{
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px; /* Reduced gap for a tighter layout */
-  margin-top: 10px; /* Add margin to separate from input */
-  justify-content: flex-start; /* Align images to the start */
-}
 
-.form-group img {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative; /* For positioning the remove button */
-  width: 100px; /* Fixed width for consistency */
-}

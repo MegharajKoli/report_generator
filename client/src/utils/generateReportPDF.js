@@ -230,6 +230,9 @@ export const generateReportPDF = async (reportData) => {
     currentY += 10;
 
 
+    doc.addPage();
+    currentY = marginTop;
+    
     // Feedback
     if (reportData.feedback) {
       console.log('Feedback data:', JSON.stringify(reportData.feedback, null, 2));

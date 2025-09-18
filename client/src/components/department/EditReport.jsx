@@ -250,6 +250,19 @@ function EditReport() {
       updatedExistingFiles.splice(index, 1);
       setPreviews({ ...previews, feedback: updatedPreviews });
       setExistingFiles({ ...existingFiles, feedback: updatedExistingFiles });
+      try {
+      const token = localStorage.getItem("token");
+      if (token) {
+        axios.post(
+          "http://localhost:3001/api/reports/remove-feedback",
+          { reportId, index },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log(`Removed feedback[${index}] from DB`);
+      }
+    } catch (err) {
+      setError(`Failed to remove feedback from DB: ${err.message}`);
+    }
     }
     setFormData({
       ...formData,
@@ -355,105 +368,120 @@ function EditReport() {
     }
   };
 
-  const handleSubmit = async e => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setError("");
-    setSuccess("");
+const sanitizeFormData = (data) => {
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => {
+      if (typeof value === "string") {
+        return [key, value.replace(/\s+/g, " ").trim()]; // collapse inner spaces + trim
+      }
+      return [key, value];
+    })
+  );
+};
 
-    const missingFields = [];
-    if (!formData.eventName) missingFields.push("Event Name");
-    if (!formData.venue) missingFields.push("Venue");
-    if (!formData.organizedBy) missingFields.push("Organized By");
-    if (!formData.totalParticipants || isNaN(formData.totalParticipants) || formData.totalParticipants <= 0) missingFields.push("Total Participants");
-    if (!formData.timeFrom) missingFields.push("Time From");
-    if (!formData.timeTo) missingFields.push("Time To");
-    if (formData.tenure === "1 Day" && !formData.date) missingFields.push("Date");
-    if (formData.tenure === "Multiple Days" && (!formData.dateFrom || !formData.dateTo)) {
-      if (!formData.dateFrom) missingFields.push("Date From");
-      if (!formData.dateTo) missingFields.push("Date To");
-    }
-    if (formData.eventType === "Other" && !formData.customEventType) missingFields.push("Custom Event Type");
+const handleSubmit = async e => {
+  e.preventDefault();
+  setIsSubmitting(true);
+  setError("");
+  setSuccess("");
 
-    if (missingFields.length > 0) {
-      const errorMsg = `Missing required fields: ${missingFields.join(", ")}.`;
-      console.log("Validation failed:", errorMsg);
-      setError(errorMsg);
-      setIsSubmitting(false);
-      return;
-    }
+  // 🔑 Clean up spaces in all string fields
+  const cleanedFormData = sanitizeFormData(formData);
+  setFormData(cleanedFormData); // optional: update local state
 
-    const submissionData = new FormData();
-    try {
-      Object.keys(formData).forEach(key => {
-        if (key === "poster" || key === "permissionImage") {
-          if (formData[key] instanceof File) {
-            submissionData.append(key, formData[key]);
-            console.log(`Appended ${key}: ${formData[key].name}, size: ${formData[key].size} bytes`);
-          }
-        } else if (key === "attendance" || key === "photographs") {
-          if (Array.isArray(formData[key])) {
-            formData[key].forEach((file, index) => {
-              if (file instanceof File) {
-                submissionData.append(key, file);
-                console.log(`Appended ${key}[${index}]: ${file.name}, size: ${file.size} bytes`);
-              }
-            });
-          }
-        } else if (key === "feedback") {
-          submissionData.append("feedback", JSON.stringify(formData.feedback.map(item => ({
-            question: item.question || "",
-            answer: item.answer || ""
-          }))));
-          formData.feedback.forEach((item, index) => {
-            if (item.analytics instanceof File) {
-              submissionData.append(`feedbackAnalytics-${index}`, item.analytics);
-              console.log(`Appended feedbackAnalytics-${index}: ${item.analytics.name}, size: ${item.analytics.size} bytes`);
+  const missingFields = [];
+  if (!cleanedFormData.eventName) missingFields.push("Event Name");
+  if (!cleanedFormData.venue) missingFields.push("Venue");
+  if (!cleanedFormData.organizedBy) missingFields.push("Organized By");
+  if (!cleanedFormData.totalParticipants || isNaN(cleanedFormData.totalParticipants) || cleanedFormData.totalParticipants <= 0) missingFields.push("Total Participants");
+  if (!cleanedFormData.timeFrom) missingFields.push("Time From");
+  if (!cleanedFormData.timeTo) missingFields.push("Time To");
+  if (cleanedFormData.tenure === "1 Day" && !cleanedFormData.date) missingFields.push("Date");
+  if (cleanedFormData.tenure === "Multiple Days" && (!cleanedFormData.dateFrom || !cleanedFormData.dateTo)) {
+    if (!cleanedFormData.dateFrom) missingFields.push("Date From");
+    if (!cleanedFormData.dateTo) missingFields.push("Date To");
+  }
+  if (cleanedFormData.eventType === "Other" && !cleanedFormData.customEventType) missingFields.push("Custom Event Type");
+
+  if (missingFields.length > 0) {
+    const errorMsg = `Missing required fields: ${missingFields.join(", ")}.`;
+    console.log("Validation failed:", errorMsg);
+    setError(errorMsg);
+    setIsSubmitting(false);
+    return;
+  }
+
+  const submissionData = new FormData();
+  try {
+    Object.keys(cleanedFormData).forEach(key => {
+      if (key === "poster" || key === "permissionImage") {
+        if (formData[key] instanceof File) {
+          submissionData.append(key, formData[key]);
+          console.log(`Appended ${key}: ${formData[key].name}, size: ${formData[key].size} bytes`);
+        }
+      } else if (key === "attendance" || key === "photographs") {
+        if (Array.isArray(formData[key])) {
+          formData[key].forEach((file, index) => {
+            if (file instanceof File) {
+              submissionData.append(key, file);
+              console.log(`Appended ${key}[${index}]: ${file.name}, size: ${file.size} bytes`);
             }
           });
-        } else if (Array.isArray(formData[key])) {
-          submissionData.append(key, JSON.stringify(formData[key]));
-        } else {
-          submissionData.append(key, formData[key] || "");
         }
-      });
+      } else if (key === "feedback") {
+        submissionData.append("feedback", JSON.stringify(formData.feedback.map(item => ({
+          question: item.question || "",
+          answer: item.answer || ""
+        }))));
+        formData.feedback.forEach((item, index) => {
+          if (item.analytics instanceof File) {
+            submissionData.append(`feedbackAnalytics-${index}`, item.analytics);
+            console.log(`Appended feedbackAnalytics-${index}: ${item.analytics.name}, size: ${item.analytics.size} bytes`);
+          }
+        });
+      } else if (Array.isArray(formData[key])) {
+        submissionData.append(key, JSON.stringify(formData[key]));
+      } else {
+        submissionData.append(key, cleanedFormData[key] || "");
+      }
+    });
 
-      console.log("FormData entries:", [...submissionData.entries()]);
-    } catch (err) {
-      console.error("Error building FormData:", err.message);
-      setError("Failed to prepare form data.");
-      setIsSubmitting(false);
-      return;
-    }
+    console.log("FormData entries:", [...submissionData.entries()]);
+  } catch (err) {
+    console.error("Error building FormData:", err.message);
+    setError("Failed to prepare form data.");
+    setIsSubmitting(false);
+    return;
+  }
 
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("No authentication token found.");
-      const res = await axios.put(
-        `http://localhost:3001/api/reports/${reportId}`,
-        submissionData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("Submission successful:", res.data);
-      setSuccess("Report updated successfully!");
-      setIsSubmitted(true);
-      setShowModal(true);
-    } catch (error) {
-      console.error("Submission error:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
-      setError(`Failed to update: ${error.response?.data?.error || error.message}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) throw new Error("No authentication token found.");
+    const res = await axios.put(
+      `http://localhost:3001/api/reports/${reportId}`,
+      submissionData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    console.log("Submission successful:", res.data);
+    setSuccess("Report updated successfully!");
+    setIsSubmitted(true);
+    setShowModal(true);
+  } catch (error) {
+    console.error("Submission error:", {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+    });
+    setError(`Failed to update: ${error.response?.data?.error || error.message}`);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const closeModal = () => {
     setShowModal(false);
@@ -598,7 +626,7 @@ function EditReport() {
                 <img
                   src={previews.poster || existingFiles.poster}
                   alt="Poster Preview"
-                  style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa", marginRight: 8 }}
+                  style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa", marginRight: 8, paddingTop: 0}}
                 />
                 <button
                   type="button"
@@ -615,6 +643,7 @@ function EditReport() {
               onChange={e => handleSingleFileChange(e, "poster")}
               style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
             />
+            <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
           </div>
           <div className="form-group">
             <label>Speakers</label>
@@ -857,13 +886,14 @@ function EditReport() {
               onChange={e => handleMultipleFileChange(e, "attendance")}
               style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
             />
+            <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
               {[...existingFiles.attendance, ...previews.attendance].map((url, index) => (
                 <div key={`attendance-${index}`} style={{ position: "relative" }}>
                   <img
                     src={url}
                     alt={`Attendance ${index + 1}`}
-                    style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa" }}
+                    style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa" ,paddingTop: 0}}
                   />
                   <button
                     type="button"
@@ -883,7 +913,7 @@ function EditReport() {
                 <img
                   src={previews.permissionImage || existingFiles.permissionImage}
                   alt="Permission Preview"
-                  style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa", marginRight: 8 }}
+                  style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa", marginRight: 8 ,paddingTop: 0}}
                 />
                 <button
                   type="button"
@@ -900,6 +930,7 @@ function EditReport() {
               onChange={e => handleSingleFileChange(e, "permissionImage")}
               style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
             />
+            <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
           </div>
           <div className="form-group">
             <label>Feedback</label>
@@ -924,7 +955,7 @@ function EditReport() {
                     <img
                       src={previews.feedback[index] || existingFiles.feedback[index]}
                       alt={`Feedback Analytics Preview ${index + 1}`}
-                      style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa" }}
+                      style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa",paddingTop: 0 }}
                     />
                     <button
                       type="button"
@@ -942,6 +973,7 @@ function EditReport() {
                   onChange={e => handleFeedbackAnalytics(e, index)}
                   style={{ fontFamily: "Times New Roman", fontSize: "12px", marginBottom: 4 }}
                 />
+                <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
                 {formData.feedback.length > 1 && (
                   <button
                     type="button"
@@ -973,13 +1005,14 @@ function EditReport() {
               onChange={e => handleMultipleFileChange(e, "photographs")}
               style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
             />
+            <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
               {[...existingFiles.photographs, ...previews.photographs].map((url, index) => (
                 <div key={`photograph-${index}`} style={{ position: "relative" }}>
                   <img
                     src={url}
                     alt={`Photograph ${index + 1}`}
-                    style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa" }}
+                    style={{ height: 80, width: "auto", objectFit: "contain", border: "1px solid #aaa",paddingTop: 0 }}
                   />
                   <button
                     type="button"

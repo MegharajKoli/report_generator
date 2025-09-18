@@ -113,6 +113,17 @@ router.get("/annual", getAnnualReports);
 // POST: Remove an image from a report
 router.post("/remove-image", authMiddleware, removeImage);
 
+// POST: Remove feedback
+router.post('/remove-feedback', async (req, res) => {
+  const { reportId, index } = req.body;
+  const report = await Report.findById(reportId);
+  if (report.feedback[index] && report.feedback[index].analytics) {
+    // Delete analytics file from storage
+  }
+  report.feedback.splice(index, 1);
+  await report.save();
+  res.send('Feedback removed');
+});
 
 
 router.get('/minimal', authMiddleware, getMinimalReports);
