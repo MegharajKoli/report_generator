@@ -5,11 +5,11 @@ import { generateAnnualPDF } from "../../utils/generateannualpdf";
 
 const DownloadAnnualReports = () => {
   const [reports, setReports] = useState([]);
-  const [search, setSearch] = useState("");
+  const [searchYear, setSearchYear] = useState(""); // 🔄 changed name from `search` to `searchYear`
   const [userDept, setUserDept] = useState("");
   const [searchOrg, setSearchOrg] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [downloading, setDownloading] = useState({}); 
+  const [downloading, setDownloading] = useState({});
 
   useEffect(() => {
     const dept = localStorage.getItem("department");
@@ -32,10 +32,13 @@ const DownloadAnnualReports = () => {
     fetchReports();
   }, []);
 
-  // 🔍 filter by dept + search
+  // 📌 Unique academic years for dropdown
+  const academicYears = [...new Set(reports.map(r => r.academicYear))].sort().reverse();
+
+  // 🔍 filter by dept + year + org
   const filteredReports = reports.filter((report) => {
     const matchesDept = report.department === userDept;
-    const matchesEvent = report.academicYear?.toLowerCase().includes(search.toLowerCase());
+    const matchesEvent = searchYear ? report.academicYear === searchYear : true;
     const matchesOrg = report.organizedBy?.toLowerCase().includes(searchOrg.toLowerCase());
     return matchesDept && matchesEvent && matchesOrg;
   });
@@ -91,79 +94,87 @@ const DownloadAnnualReports = () => {
   }
 
   return (
-  <div className="annual-reports-container">
-    <h2>Annual Reports</h2>
+    <div className="annual-reports-container">
+      <h2>Annual Reports</h2>
 
-    {/* 🔍 Search */}
-    <div className="search">
-      <input
-        type="text"
-        placeholder="Search by Academic Year"
-        className="search-bar"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-      <input
-        type="text"
-        placeholder="Search by Organization"
-        className="search-bar"
-        value={searchOrg}
-        onChange={(e) => setSearchOrg(e.target.value)}
-      />
-    </div>
+      {/* 🔍 Search */}
+      <div className="search">
+        {/* Academic Year Dropdown */}
+        <select
+        id="year"
+          className="search-bar"
+          value={searchYear}
+          onChange={(e) => setSearchYear(e.target.value)}
+        >
+          <option  value="">All Academic Years</option>
+          {academicYears.map((year, idx) => (
+            <option key={idx} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
 
-    {/* 🟢 NEW: Show message if no reports */}
-    {sortedReports.length === 0 ? (
-      <p style={{ textAlign: "center", marginTop: "20px", fontFamily: "Times New Roman", fontSize: "16px", color: "#555" }}>
-        No reports found
-      </p>
-    ) : (
-      /* 📋 Grouped Reports */
-      Object.entries(groupedReports).map(([key, reports], idx) => {
-        const [club, year] = key.split(" - ");
-        return (
-          <div key={idx} className="report-group">
-            <h3>
-              {club} ({year})
-            </h3>
-          
-            <table className="reports-table">
-              <thead>
-                <tr>
-                  <th>S.No.</th>
-                  <th>Title</th>
-                  <th>Organized By</th>
-                  <th>Academic Year</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map((r, i) => (
-                  <tr key={r._id || i}>
-                    <td>{i + 1}</td>
-                    <td>{r.eventName}</td>
-                    <td>{r.organizedBy || "N/A"}</td>
-                    <td>{r.academicYear || "N/A"}</td>
+        {/* Organization Search */}
+        <input
+          type="text"
+          placeholder="Search by Organization"
+          className="search-bar"
+          value={searchOrg}
+          onChange={(e) => setSearchOrg(e.target.value)}
+        />
+      </div>
+
+      {/* 🟢 Show message if no reports */}
+      {sortedReports.length === 0 ? (
+        <p style={{ textAlign: "center", marginTop: "20px", fontFamily: "Times New Roman", fontSize: "16px", color: "#555" }}>
+          No reports found
+        </p>
+      ) : (
+        /* 📋 Grouped Reports */
+        Object.entries(groupedReports).map(([key, reports], idx) => {
+          const [club, year] = key.split(" - ");
+          return (
+            <div key={idx} className="report-group">
+              <h3>
+                {club} ({year})
+              </h3>
+
+              <table className="reports-table">
+                <thead>
+                  <tr>
+                    <th>S.No.</th>
+                    <th>Title</th>
+                    <th>Organized By</th>
+                    <th>Academic Year</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {reports.map((r, i) => (
+                    <tr key={r._id || i}>
+                      <td>{i + 1}</td>
+                      <td>{r.eventName}</td>
+                      <td>{r.organizedBy || "N/A"}</td>
+                      <td>{r.academicYear || "N/A"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-            <div className="download-container">
-              <button
-                className="download-btn"
-                onClick={() => handleDownload(club, year, reports, key)}
-                disabled={downloading[key]}
-              >
-                {downloading[key] ? "Generating..." : `Download ${club} ${year} Report`}
-              </button>
+              <div className="download-container">
+                <button
+                  className="download-btn"
+                  onClick={() => handleDownload(club, year, reports, key)}
+                  disabled={downloading[key]}
+                >
+                  {downloading[key] ? "Generating..." : `Download ${club} ${year} Report`}
+                </button>
+              </div>
             </div>
-          </div>
-        );
-      })
-    )}
-  </div>
-);
-
+          );
+        })
+      )}
+    </div>
+  );
 };
 
 export default DownloadAnnualReports;

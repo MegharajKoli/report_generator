@@ -32,7 +32,9 @@
   font-size: 14px;
   transition: 0.3s ease;
 }
-
+#year {
+  color: rgb(122, 122, 122);
+}
 .search-bar:focus {
   outline: none;
   border-color: #3b82f6; /* nice blue */
@@ -107,6 +109,7 @@
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 14px;
+  color: gray;
 }
 
 .reports-table {

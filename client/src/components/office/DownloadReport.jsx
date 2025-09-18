@@ -9,7 +9,7 @@ const DownloadReport = () => {
   const [searchOrg, setSearchOrg] = useState("");
   const [searchDept, setSearchDept] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [downloading, setDownloading] = useState({}); // Track downloading state for each button
+  const [downloading, setDownloading] = useState({});
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -31,7 +31,7 @@ const DownloadReport = () => {
 
   // 🔍 filter by dept + org + year
   const filteredReports = reports.filter((report) => {
-    const matchesDept = report.department?.toLowerCase().includes(searchDept.toLowerCase());
+    const matchesDept = searchDept ? report.department === searchDept : true;
     const matchesEvent = searchYear ? report.academicYear === searchYear : true;
     const matchesOrg = report.organizedBy?.toLowerCase().includes(searchOrg.toLowerCase());
     return matchesDept && matchesEvent && matchesOrg;
@@ -63,6 +63,16 @@ const DownloadReport = () => {
 
   // 📌 Unique academic years for dropdown
   const academicYears = [...new Set(reports.map(r => r.academicYear))].sort().reverse();
+
+  // 📌 Fixed Department List
+  const departments = [
+    "Mechanical and Automation",
+    "Computer Science and Engineering",
+    "Civil Engineering",
+    "Electronics and Telecommunication Engineering",
+    "Electronics and Computer Science Engineering",
+    "Information Technology"
+  ];
 
   // Handle download button click
   const handleDownload = async (club, year, reports, clubKey) => {
@@ -100,13 +110,21 @@ const DownloadReport = () => {
 
       {/* 🔍 Search */}
       <div className="search">
-        <input
-          type="text"
-          placeholder="Search by Department"
+        {/* Department Dropdown */}
+        <select
           className="search-bar"
           value={searchDept}
           onChange={(e) => setSearchDept(e.target.value)}
-        />
+        >
+          <option value="">All Departments</option>
+          {departments.map((dept, idx) => (
+            <option key={idx} value={dept}>
+              {dept}
+            </option>
+          ))}
+        </select>
+
+        {/* Academic Year Dropdown */}
         <select
           className="search-bar"
           value={searchYear}
@@ -119,6 +137,8 @@ const DownloadReport = () => {
             </option>
           ))}
         </select>
+
+        {/* Organization Search */}
         <input
           type="text"
           placeholder="Search by Organization"
@@ -129,55 +149,63 @@ const DownloadReport = () => {
       </div>
 
       {/* 📋 Grouped Reports */}
-      {Object.entries(groupedByDept).map(([dept, clubs], deptIdx) => (
-        <div key={deptIdx} className="department-group">
-          <h2 className="department-heading">{dept}</h2>
-
-          {Object.entries(clubs).map(([clubYear, reports], clubIdx) => {
-            const [club, year] = clubYear.split(" - ");
-            return (
-              <div key={clubIdx} className="report-group">
-                <h3>
-                  {club} ({year})
-                </h3>
-
-                <table className="reports-table">
-                  <thead>
-                    <tr>
-                      <th>S.No.</th>
-                      <th>Title</th>
-                      <th>Organized By</th>
-                      <th>Academic Year</th>
-                      <th>Department</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reports.map((r, i) => (
-                      <tr key={r._id || i}>
-                        <td>{i + 1}</td>
-                        <td>{r.eventName}</td>
-                        <td>{r.organizedBy || "N/A"}</td>
-                        <td>{r.academicYear || "N/A"}</td>
-                        <td>{r.department || "N/A"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <div className="download-container">
-                  <button
-                    className="download-btn"
-                    onClick={() => handleDownload(club, year, reports, clubYear)}
-                    disabled={downloading[clubYear]}
-                  >
-                    {downloading[clubYear] ? "Generating..." : `Download ${club} ${year} Report`}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+      {Object.keys(groupedByDept).length === 0 ? (
+        <div className="no-reports" style={{ textAlign: "center", marginTop: "20px" }}>
+          <p style={{ fontFamily: "Times New Roman", fontSize: "16px", color: "#666" }}>
+            No reports found
+          </p>
         </div>
-      ))}
+      ) : (
+        Object.entries(groupedByDept).map(([dept, clubs], deptIdx) => (
+          <div key={deptIdx} className="department-group">
+            <h2 className="department-heading">{dept}</h2>
+
+            {Object.entries(clubs).map(([clubYear, reports], clubIdx) => {
+              const [club, year] = clubYear.split(" - ");
+              return (
+                <div key={clubIdx} className="report-group">
+                  <h3>
+                    {club} ({year})
+                  </h3>
+
+                  <table className="reports-table">
+                    <thead>
+                      <tr>
+                        <th>S.No.</th>
+                        <th>Title</th>
+                        <th>Organized By</th>
+                        <th>Academic Year</th>
+                        <th>Department</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reports.map((r, i) => (
+                        <tr key={r._id || i}>
+                          <td>{i + 1}</td>
+                          <td>{r.eventName}</td>
+                          <td>{r.organizedBy || "N/A"}</td>
+                          <td>{r.academicYear || "N/A"}</td>
+                          <td>{r.department || "N/A"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <div className="download-container">
+                    <button
+                      className="download-btn"
+                      onClick={() => handleDownload(club, year, reports, clubYear)}
+                      disabled={downloading[clubYear]}
+                    >
+                      {downloading[clubYear] ? "Generating..." : `Download ${club} ${year} Report`}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))
+      )}
     </div>
   );
 };

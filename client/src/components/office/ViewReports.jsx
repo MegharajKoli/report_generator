@@ -8,13 +8,22 @@ function ViewReports() {
   const { user } = useContext(AuthContext) || {};
   const [reports, setReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [downloadingReportId, setDownloadingReportId] = useState(null);
+
+  // Fixed Department List
+  const departments = [
+    "Mechanical and Automation",
+    "Computer Science and Engineering",
+    "Civil Engineering",
+    "Electronics and Telecommunication Engineering",
+    "Electronics and Computer Science Engineering",
+    "Information Technology"
+  ];
 
   useEffect(() => {
     async function fetchReports() {
@@ -33,12 +42,6 @@ function ViewReports() {
         setReports(res.data);
         setFilteredReports(res.data);
 
-        // Extract unique department names for filter (for office role)
-        if (user?.role === "office") {
-          const deptNames = [...new Set(res.data.map(report => report.department?.name || report.department || "N/A"))];
-          setDepartments(deptNames);
-        }
-
         console.log("Fetched reports:", res.data.length, "reports");
       } catch (err) {
         console.error("Error fetching reports:", err.message, err.response?.data);
@@ -53,7 +56,8 @@ function ViewReports() {
   useEffect(() => {
     // Filter reports based on search term and selected department
     const filtered = reports.filter(report => {
-      const matchesSearch = report.eventName?.toLowerCase().includes(searchTerm.toLowerCase()) || report.organizedBy?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+      const matchesSearch = report.eventName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           report.organizedBy?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
       const matchesDepartment = selectedDepartment
         ? (report.department?.name || report.department || "N/A") === selectedDepartment
         : true;
@@ -152,7 +156,11 @@ function ViewReports() {
       </div>
 
       {filteredReports.length === 0 ? (
-        <p style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>No reports available.</p>
+        <div className="no-reports" style={{ textAlign: "center", marginTop: "20px" }}>
+          <p style={{ fontFamily: "Times New Roman", fontSize: "16px", color: "#666" }}>
+            No reports found
+          </p>
+        </div>
       ) : (
         <table className="report-table">
           <thead>
