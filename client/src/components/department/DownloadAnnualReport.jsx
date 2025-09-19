@@ -17,7 +17,7 @@ const DownloadAnnualReports = () => {
 
     const fetchReports = async () => {
       try {
-        const response = await fetch("http://localhost:3001/api/reports/annual");
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reports/annual`);
         if (!response.ok) throw new Error("Failed to fetch reports");
         const data = await response.json();
         console.log("📦 Reports from backend:", data);

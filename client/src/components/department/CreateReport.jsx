@@ -370,8 +370,8 @@ const handleSubmit = async (e) => {
     const token = localStorage.getItem("token");
     if (!token) throw new Error("No authentication token found.");
     const url = isEditMode
-      ? `http://localhost:3001/api/reports/${reportId}`
-      : "http://localhost:3001/api/reports/create";
+      ? `${import.meta.env.VITE_API_URL}/api/reports/${reportId}`
+      : `${import.meta.env.VITE_API_URL}/api/reports/create`;
     const method = isEditMode ? "put" : "post";
     console.log(`Sending ${method.toUpperCase()} request to ${url}`);
     const res = await axios[method](url, submissionData, {
@@ -418,7 +418,7 @@ const handleSubmit = async (e) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('No authentication token found.');
-      const res = await axios.get(`http://localhost:3001/api/reports?reportId=${id}`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/reports?reportId=${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -849,10 +849,10 @@ const handleSubmit = async (e) => {
               onChange={(e) => handleMultipleFileChange(e, 'attendance')}
               style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
             />
+            <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
               {(previews.attendance || []).map((url, index) => (
                 <div key={`preview-attendance-${index}`} style={{ position: 'relative' }}>
-                  <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
                   <img
                     src={url}
                     alt={`Attendance Preview ${index + 1}`}

@@ -75,7 +75,7 @@ function EditReport() {
         if (!token) throw new Error("No authentication token found.");
         console.log("Fetching report with ID:", reportId);
         const res = await axios.get(
-          `http://localhost:3001/api/reports?reportId=${reportId}`,
+          `${import.meta.env.VITE_API_URL}/api/reports?reportId=${reportId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = res.data;
@@ -254,7 +254,7 @@ function EditReport() {
       const token = localStorage.getItem("token");
       if (token) {
         axios.post(
-          "http://localhost:3001/api/reports/remove-feedback",
+          `${import.meta.env.VITE_API_URL}/api/reports/remove-feedback`,
           { reportId, index },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -347,7 +347,7 @@ function EditReport() {
         }
 
         const response = await axios.post(
-          "http://localhost:3001/api/reports/remove-image",
+          `${import.meta.env.VITE_API_URL}/api/reports/remove-image`,
           { reportId, field, index: field === "poster" || field === "permissionImage" ? null : index },
           {
             headers: {
@@ -458,7 +458,7 @@ const handleSubmit = async e => {
     const token = localStorage.getItem("token");
     if (!token) throw new Error("No authentication token found.");
     const res = await axios.put(
-      `http://localhost:3001/api/reports/${reportId}`,
+      `${import.meta.env.VITE_API_URL}/api/reports/${reportId}`,
       submissionData,
       {
         headers: {

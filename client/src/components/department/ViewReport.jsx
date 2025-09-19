@@ -21,7 +21,7 @@ const ViewReport = () => {
     const fetchReports = async () => {
       setLoading(true); // Set loading to true before fetching
       try {
-        const res = await axios.get("http://localhost:3001/api/reports/department", {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/reports/department`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -41,7 +41,7 @@ const ViewReport = () => {
     setDownloadingReportId(id);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(`http://localhost:3001/api/reports?reportId=${id}`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/reports?reportId=${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -69,7 +69,7 @@ const ViewReport = () => {
     if (!reportToDelete) return;
 
     try {
-      await axios.delete(`http://localhost:3001/api/reports/${reportToDelete}`, {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/api/reports/${reportToDelete}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },

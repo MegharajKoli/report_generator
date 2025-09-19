@@ -33,7 +33,7 @@ function ViewReports() {
         if (!token) throw new Error("No authentication token found.");
 
         // Fetch reports
-        const res = await axios.get("http://localhost:3001/api/reports/all", {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/reports/all`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!Array.isArray(res.data)) {
