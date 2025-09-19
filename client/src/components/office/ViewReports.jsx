@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
+import { useParams, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { generateReportPDF } from "../../utils/generateReportPDF";
 import "../../styles/ViewReports.css";
@@ -14,7 +15,11 @@ function ViewReports() {
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [downloadingReportId, setDownloadingReportId] = useState(null);
+  const navigate = useNavigate();
 
+  const handleBack=()=>{
+navigate("/dashboard-office");
+  };
   // Fixed Department List
   const departments = [
     "Mechanical and Automation",
@@ -126,6 +131,22 @@ function ViewReports() {
 
   return (
     <div className="view-report">
+          <button
+      onClick={handleBack}
+      style={{
+        padding: "10px 20px",
+        backgroundColor: "#3B82F6",
+        color: "black",
+        border: "none",
+        borderRadius: "6px",
+        cursor: "pointer",
+        fontSize: "16px",
+      }}
+      onMouseOver={(e) => (e.target.style.backgroundColor = "#2563EB")}
+      onMouseOut={(e) => (e.target.style.backgroundColor = "#3B82F6")}
+    >
+      ↩
+    </button>
       <h2>Reports for {user?.department?.name || user?.department || "Department"}</h2>
       {error && <div className="error" style={{ color: "red", fontSize: "14px", marginBottom: "10px" }}>{error}</div>}
       {success && <div className="success" style={{ color: "green", fontSize: "14px", marginBottom: "10px" }}>{success}</div>}

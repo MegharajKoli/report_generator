@@ -16,6 +16,11 @@ function EditReport() {
   const { reportId } = useParams();
   const navigate = useNavigate();
 
+  const handleBack = ()=>{
+
+    navigate("/dashboard-dept/view-report");
+  }
+
   const [formData, setFormData] = useState({
     department: user?.department || "",
     academicYear: "2024-25",
@@ -497,8 +502,26 @@ const handleSubmit = async e => {
     );
   }
 
+  
+
   return (
     <div className="reportcreate">
+          <button
+      onClick={handleBack}
+      style={{
+        padding: "10px 20px",
+        backgroundColor: "#3B82F6",
+        color: "black",
+        border: "none",
+        borderRadius: "6px",
+        cursor: "pointer",
+        fontSize: "16px",
+      }}
+      onMouseOver={(e) => (e.target.style.backgroundColor = "#2563EB")}
+      onMouseOut={(e) => (e.target.style.backgroundColor = "#3B82F6")}
+    >
+      ↩
+    </button>
       <div className="create-report">
         <h2>Edit Your Report</h2>
         {error && <div className="error" style={{ color: "red", fontSize: "14px", marginBottom: "10px" }}>{error}</div>}

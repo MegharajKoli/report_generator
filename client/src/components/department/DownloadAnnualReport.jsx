@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from 'react-router-dom';
 import "jspdf-autotable";
 import "../../styles/DownloadAnnualReports.css";
 import { generateAnnualPDF } from "../../utils/generateannualpdf";
@@ -10,6 +11,11 @@ const DownloadAnnualReports = () => {
   const [searchOrg, setSearchOrg] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [downloading, setDownloading] = useState({});
+
+  const handleBack = () => {
+    navigate("/dashboard-dept");
+  };
+  const navigate = useNavigate();
 
   useEffect(() => {
     const dept = localStorage.getItem("department");
@@ -74,10 +80,12 @@ const DownloadAnnualReports = () => {
       setDownloading((prev) => ({ ...prev, [key]: false }));
     }
   };
+  
 
   if (isLoading) {
     return (
       <div className="loading-container" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+        
         <div className="loading-spinner" style={{
           border: "4px solid #f3f3f3",
           borderTop: "4px solid #3498db",
@@ -90,12 +98,30 @@ const DownloadAnnualReports = () => {
           Please wait while we load your reports
         </p>
       </div>
+      
     );
   }
 
   return (
     <div className="annual-reports-container">
+    
       <h2>Annual Reports</h2>
+               <button
+      onClick={handleBack}
+      style={{
+        padding: "10px 20px",
+        backgroundColor: "#3B82F6",
+        color: "black",
+        border: "none",
+        borderRadius: "6px",
+        cursor: "pointer",
+        fontSize: "16px",
+      }}
+      onMouseOver={(e) => (e.target.style.backgroundColor = "#2563EB")}
+      onMouseOut={(e) => (e.target.style.backgroundColor = "#3B82F6")}
+    >
+    ↩
+    </button>
 
       {/* 🔍 Search */}
       <div className="search">

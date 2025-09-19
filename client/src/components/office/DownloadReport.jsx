@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import "jspdf-autotable";
 import "../../styles/DownloadAnnualReports.css";
 import { generateAnnualPDF } from "../../utils/generateannualpdf";
@@ -10,7 +11,7 @@ const DownloadReport = () => {
   const [searchDept, setSearchDept] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [downloading, setDownloading] = useState({});
-
+  const navigate = useNavigate();
   useEffect(() => {
     const fetchReports = async () => {
       try {
@@ -28,7 +29,9 @@ const DownloadReport = () => {
 
     fetchReports();
   }, []);
-
+const handleBack = ()=>{
+    navigate("/dashboard-office");
+  };
   // 🔍 filter by dept + org + year
   const filteredReports = reports.filter((report) => {
     const matchesDept = searchDept ? report.department === searchDept : true;
@@ -60,7 +63,7 @@ const DownloadReport = () => {
     if (!groupedByDept[deptKey][clubKey]) groupedByDept[deptKey][clubKey] = [];
     groupedByDept[deptKey][clubKey].push(report);
   });
-
+   
   // 📌 Unique academic years for dropdown
   const academicYears = [...new Set(reports.map(r => r.academicYear))].sort().reverse();
 
@@ -106,7 +109,24 @@ const DownloadReport = () => {
 
   return (
     <div className="annual-reports-container">
+          <button
+      onClick={handleBack}
+      style={{
+        padding: "10px 20px",
+        backgroundColor: "#3B82F6",
+        color: "black",
+        border: "none",
+        borderRadius: "6px",
+        cursor: "pointer",
+        fontSize: "16px",
+      }}
+      onMouseOver={(e) => (e.target.style.backgroundColor = "#2563EB")}
+      onMouseOut={(e) => (e.target.style.backgroundColor = "#3B82F6")}
+    >
+      ↩
+    </button>
       <h2>Office Annual Reports</h2>
+      
 
       {/* 🔍 Search */}
       <div className="search">

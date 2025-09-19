@@ -15,6 +15,10 @@ function CreateReport() {
   const navigate = useNavigate();
   const isEditMode = !!reportId;
 
+const handleBack = () => {
+    navigate("/dashboard-dept");
+  };
+
   const [formData, setFormData] = useState({
     department: user?.department || '',
     academicYear: '2024-25',
@@ -460,6 +464,22 @@ const handleSubmit = async (e) => {
   return (
     <div className="reportcreate">
       <div className="create-report">
+       <button
+      onClick={handleBack}
+      style={{
+        padding: "10px 20px",
+        backgroundColor: "#3B82F6",
+        color: "#1e88e5",
+        border: "none",
+        borderRadius: "6px",
+        cursor: "pointer",
+        fontSize: "16px",
+      }}
+      onMouseOver={(e) => (e.target.style.backgroundColor = "#2563EB")}
+      onMouseOut={(e) => (e.target.style.backgroundColor = "#3B82F6")}
+    >
+    ↩
+    </button>
         <h2>Create Report </h2>
         {error && <div className="error" style={{ color: 'red', fontSize: '14px', marginBottom: '10px' }}>{error}</div>}
         {success && <div className="success" style={{ color: 'green', fontSize: '14px', marginBottom: '10px' }}>{success}</div>}
@@ -604,7 +624,7 @@ const handleSubmit = async (e) => {
               onChange={(e) => handleSingleFileChange(e, 'poster')}
               style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
             />
-            <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
+            <h5 style={{color : "grey"}}>(Choose only png/jpeg file)</h5>
           </div>
           <div className="form-group">
             <label>Speakers</label>
@@ -849,10 +869,11 @@ const handleSubmit = async (e) => {
               onChange={(e) => handleMultipleFileChange(e, 'attendance')}
               style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
             />
+            <h5 style={{color : "grey"}}>(Choose only png/jpeg file)</h5>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
               {(previews.attendance || []).map((url, index) => (
                 <div key={`preview-attendance-${index}`} style={{ position: 'relative' }}>
-                  <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
+                  <h5 style={{color : "grey"}}>(Choose only png/jpeg file)</h5>
                   <img
                     src={url}
                     alt={`Attendance Preview ${index + 1}`}
@@ -909,7 +930,7 @@ const handleSubmit = async (e) => {
               onChange={(e) => handleSingleFileChange(e, 'permissionImage')}
               style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
             />
-            <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
+            <h5 style={{color : "grey"}}>(Choose only png/jpeg file)</h5>
           </div>
           <div className="form-group">
             <label>Feedback</label>
@@ -952,7 +973,7 @@ const handleSubmit = async (e) => {
                   onChange={(e) => handleFeedbackAnalytics(e, index)}
                   style={{ fontFamily: 'Times New Roman', fontSize: '12px', marginBottom: 4 }}
                 />
-                <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
+                <h5 style={{color : "grey"}}>(Choose only png/jpeg file)</h5>
                 {formData.feedback.length > 1 && (
                   <button
                     type="button"
@@ -984,7 +1005,7 @@ const handleSubmit = async (e) => {
               onChange={(e) => handleMultipleFileChange(e, 'photographs')}
               style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
             />
-            <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
+            <h5 style={{color : "grey"}}>(Choose only png/jpeg file)</h5>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
               {(previews.photographs || []).map((url, index) => (
                 <div key={`preview-photo-${index}`} style={{ position: 'relative' }}>
