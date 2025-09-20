@@ -34,7 +34,10 @@ function Header() {
       <header className="header">
         <img src="/wit_logo.png" alt="Logo" className="logo" />
         <h1>
-          {user?.role === "department" ? `${user.department} Department` : "Office Admin"}
+          {user?.role === "department"? user.department === "Walchand Institute of Technology"?
+           user.department: `Department of ${user.department}`
+          : "Office Admin"}
+
         </h1>
 
         <button

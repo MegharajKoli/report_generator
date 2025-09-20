@@ -10,46 +10,16 @@ mongoose.connect(uri, {
 
 const users = [
   {
-    userId: "cse001",
+    userId: "library001",
     password: "password123",
     role: "department",
-    department: "Computer Science and Engineering",
+    department: "Library",
   },
   {
-    userId: "it001",
+    userId: "wit001",
     password: "password123",
     role: "department",
-    department: "Information Technology",
-  },
-  {
-    userId: "etc001",
-    password: "password123",
-    role: "department",
-    department: "Electronics and Telecommunication Engineering",
-  },
-  {
-    userId: "ecse001",
-    password: "password123",
-    role: "department",
-    department: "Electronics and Computer Science Engineering",
-  },
-  {
-    userId: "mech001",
-    password: "password123",
-    role: "department",
-    department: "Mechanical and Automation",
-  },
-  {
-    userId: "civil001",
-    password: "password123",
-    role: "department",
-    department: "Civil Engineering",
-  },
-  {
-    userId: "office001",
-    password: "admin@123",
-    role: "office",
-    department: "Office",
+    department: "Walchand Institute of Technology",
   },
 ];
 

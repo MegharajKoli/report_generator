@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');   
+const mongoose = require('mongoose');
 const Report = require('../models/Report');
 
 const createReport = async (req, res) => {
@@ -28,6 +28,7 @@ const createReport = async (req, res) => {
       venue,
       objectives,
       outcomes,
+      sdgs,
       studentCoordinators,
       facultyCoordinators,
       totalParticipants,
@@ -41,8 +42,8 @@ const createReport = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!eventName || !venue || !organizedBy || !totalParticipants || !timeFrom || !timeTo) {
-      throw new Error('Missing required fields: Event Name, Venue, Organized By, Total Participants, Time From, Time To');
+    if (!eventName || !venue || !organizedBy || !totalParticipants || !timeFrom || !timeTo || !sdgs) {
+      throw new Error('Missing required fields: Event Name, Venue, Organized By, Total Participants, Time From, Time To, Sustainable Development Goals');
     }
     if (tenure === '1 Day' && !date) {
       throw new Error('Date is required for single-day events');
@@ -52,10 +53,11 @@ const createReport = async (req, res) => {
     }
 
     console.log('Parsing JSON fields');
-    let parsedObjectives, parsedOutcomes, parsedStudentCoordinators, parsedFacultyCoordinators, parsedSpeakers, parsedFeedback;
+    let parsedObjectives, parsedOutcomes, parsedSdgs, parsedStudentCoordinators, parsedFacultyCoordinators, parsedSpeakers, parsedFeedback;
     try {
       parsedObjectives = objectives ? JSON.parse(objectives) : [];
       parsedOutcomes = outcomes ? JSON.parse(outcomes) : [];
+      parsedSdgs = sdgs ? JSON.parse(sdgs) : [];
       parsedStudentCoordinators = studentCoordinators ? JSON.parse(studentCoordinators) : [];
       parsedFacultyCoordinators = facultyCoordinators ? JSON.parse(facultyCoordinators) : [];
       parsedSpeakers = speakers ? JSON.parse(speakers) : [];
@@ -65,9 +67,15 @@ const createReport = async (req, res) => {
       throw new Error(`Invalid JSON in form data: ${parseError.message}`);
     }
 
+    // Validate SDGs
+    if (!Array.isArray(parsedSdgs) || parsedSdgs.length === 0) {
+      throw new Error('At least one Sustainable Development Goal must be selected');
+    }
+
     console.log('Parsed fields:', {
       objectives: parsedObjectives,
       outcomes: parsedOutcomes,
+      sdgs: parsedSdgs,
       studentCoordinators: parsedStudentCoordinators,
       facultyCoordinators: parsedFacultyCoordinators,
       speakers: parsedSpeakers,
@@ -161,6 +169,7 @@ const createReport = async (req, res) => {
       poster: poster?.buffer,
       objectives: parsedObjectives,
       outcomes: parsedOutcomes,
+      sdgs: parsedSdgs,
       studentCoordinators: parsedStudentCoordinators,
       facultyCoordinators: parsedFacultyCoordinators,
       totalParticipants,
@@ -378,6 +387,7 @@ const updateReport = async (req, res) => {
       venue,
       objectives,
       outcomes,
+      sdgs,
       studentCoordinators,
       facultyCoordinators,
       totalParticipants,
@@ -391,8 +401,8 @@ const updateReport = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!eventName || !venue || !organizedBy || !totalParticipants || !timeFrom || !timeTo) {
-      throw new Error('Missing required fields: Event Name, Venue, Organized By, Total Participants, Time From, Time To');
+    if (!eventName || !venue || !organizedBy || !totalParticipants || !timeFrom || !timeTo || !sdgs) {
+      throw new Error('Missing required fields: Event Name, Venue, Organized By, Total Participants, Time From, Time To, Sustainable Development Goals');
     }
     if (tenure === '1 Day' && !date) {
       throw new Error('Date is required for single-day events');
@@ -405,9 +415,15 @@ const updateReport = async (req, res) => {
     const parsedFeedback = feedback ? JSON.parse(feedback || "[]") : [];
     const parsedObjectives = objectives ? JSON.parse(objectives || "[]") : [];
     const parsedOutcomes = outcomes ? JSON.parse(outcomes || "[]") : [];
+    const parsedSdgs = sdgs ? JSON.parse(sdgs || "[]") : [];
     const parsedStudentCoordinators = studentCoordinators ? JSON.parse(studentCoordinators || "[]") : [];
     const parsedFacultyCoordinators = facultyCoordinators ? JSON.parse(facultyCoordinators || "[]") : [];
     const parsedSpeakers = speakers ? JSON.parse(speakers || "[]") : [];
+
+    // Validate SDGs
+    if (!Array.isArray(parsedSdgs) || parsedSdgs.length === 0) {
+      throw new Error('At least one Sustainable Development Goal must be selected');
+    }
 
     // Preserve existing feedback entries, updating only provided ones
     const mergedFeedback = existingReport.feedback.map((existingFb, index) => {
@@ -446,6 +462,7 @@ const updateReport = async (req, res) => {
     existingReport.venue = venue;
     existingReport.objectives = parsedObjectives;
     existingReport.outcomes = parsedOutcomes;
+    existingReport.sdgs = parsedSdgs;
     existingReport.studentCoordinators = parsedStudentCoordinators;
     existingReport.facultyCoordinators = parsedFacultyCoordinators;
     existingReport.totalParticipants = totalParticipants;
@@ -489,6 +506,7 @@ const updateReport = async (req, res) => {
       studentCoordinators: existingReport.studentCoordinators,
       facultyCoordinators: existingReport.facultyCoordinators,
       customEventType: existingReport.customEventType,
+      sdgs: existingReport.sdgs,
       feedback: existingReport.feedback.map(fb => ({
         question: fb.question,
         answer: fb.answer,
@@ -503,6 +521,7 @@ const updateReport = async (req, res) => {
     res.status(500).json({ message: "Server error while updating report" });
   }
 };
+
 exports.getMinimalReports = async (req, res) => {
   try {
     const reports = await Report.find({}, "eventName department eventDate")
@@ -627,8 +646,15 @@ const getMinimalReports = async (req, res) => {
   }
 };
 
-module.exports = { createReport, getReports, getReportsByDepartment, deleteReport, updateReport, getAllReports,removeImage,
+module.exports = { 
+  createReport, 
+  getReports, 
+  getReportsByDepartment, 
+  deleteReport, 
+  updateReport, 
+  getAllReports,
+  removeImage,
   getMinimalReports,
   searchMinimalReports,
-  getAnnualReports,};
-
+  getAnnualReports,
+};

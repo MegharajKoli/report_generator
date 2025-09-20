@@ -17,6 +17,10 @@ const ViewReport = () => {
   const [loading, setLoading] = useState(false); // New loading state
   const navigate = useNavigate();
 
+ const handleBack = () => {
+    navigate("/dashboard-dept");
+  };
+
   useEffect(() => {
     const fetchReports = async () => {
       setLoading(true); // Set loading to true before fetching
@@ -109,6 +113,23 @@ const ViewReport = () => {
 
   return (
     <div className="view-report-container">
+          <button
+      onClick={handleBack}
+      style={{
+        padding: "10px 20px",
+        marginBottom: "10px",
+        backgroundColor: "#3B82F6",
+        color: "black",
+        border: "none",
+        borderRadius: "6px",
+        cursor: "pointer",
+        fontSize: "16px",
+      }}
+      onMouseOver={(e) => (e.target.style.backgroundColor = "#2563EB")}
+      onMouseOut={(e) => (e.target.style.backgroundColor = "#3B82F6")}
+    >
+      ↩
+    </button>
       <div className="search-bar-container">
         <input
           type="text"

@@ -1,5 +1,4 @@
-
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
@@ -14,9 +13,15 @@ function CreateReport() {
   const { reportId } = useParams();
   const navigate = useNavigate();
   const isEditMode = !!reportId;
+  const [isSdgDropdownOpen, setIsSdgDropdownOpen] = useState(false);
+  const sdgDropdownRef = useRef(null);
+
+  const handleBack = () => {
+    navigate('/dashboard-dept');
+  };
 
   const [formData, setFormData] = useState({
-    department: user?.department || '',
+    department: user?.department === 'Walchand Institute of Technology' ? 'Central' : user?.department,
     academicYear: '2024-25',
     organizedBy: '',
     eventName: '',
@@ -30,6 +35,7 @@ function CreateReport() {
     poster: null,
     objectives: [''],
     outcomes: [''],
+    sdgs: [],
     studentCoordinators: [''],
     facultyCoordinators: [''],
     totalParticipants: '',
@@ -44,6 +50,26 @@ function CreateReport() {
     feedback: [emptyFeedback],
     photographs: [],
   });
+
+  const SDG_OPTIONS = [
+    'No Poverty',
+    'Zero Hunger',
+    'Good Health and Well-being',
+    'Quality Education',
+    'Gender Equality',
+    'Clean Water and Sanitation',
+    'Affordable and Clean Energy',
+    'Decent Work and Economic Growth',
+    'Industry, Innovation and Infrastructure',
+    'Reduced Inequalities',
+    'Sustainable Cities and Communities',
+    'Responsible Consumption and Production',
+    'Climate Action',
+    'Life Below Water',
+    'Life On Land',
+    'Peace, Justice and Strong Institutions',
+    'Partnerships for the Goals',
+  ];
 
   const [previews, setPreviews] = useState({
     poster: null,
@@ -72,17 +98,89 @@ function CreateReport() {
   useEffect(() => {
     console.log('Component mounted, user:', user, 'token:', localStorage.getItem('token'));
     setIsSubmitted(false);
-  }, []);
+
+    if (isEditMode) {
+      const fetchReport = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) throw new Error('No authentication token found.');
+          const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/reports?reportId=${reportId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const reportData = res.data;
+          console.log('Fetched report data:', reportData);
+
+          setFormData({
+            ...formData,
+            ...reportData,
+            sdgs: reportData.sdgs || [],
+            objectives: reportData.objectives?.length ? reportData.objectives : [''],
+            outcomes: reportData.outcomes?.length ? reportData.outcomes : [''],
+            studentCoordinators: reportData.studentCoordinators?.length ? reportData.studentCoordinators : [''],
+            facultyCoordinators: reportData.facultyCoordinators?.length ? reportData.facultyCoordinators : [''],
+            speakers: reportData.speakers?.length ? reportData.speakers : [emptySpeaker],
+            feedback: reportData.feedback?.length ? reportData.feedback : [emptyFeedback],
+            attendance: reportData.attendance?.filter(f => f instanceof File) || [],
+            photographs: reportData.photographs?.filter(f => f instanceof File) || [],
+            poster: null,
+            permissionImage: null,
+          });
+
+          setExistingFiles({
+            poster: reportData.poster || null,
+            permissionImage: reportData.permissionImage || null,
+            attendance: reportData.attendance?.filter(f => typeof f === 'string') || [],
+            photographs: reportData.photographs?.filter(f => typeof f === 'string') || [],
+            feedback: reportData.feedback?.map(f => f.analytics || null) || [],
+          });
+
+          setPreviews({
+            poster: reportData.poster || null,
+            permissionImage: reportData.permissionImage || null,
+            attendance: reportData.attendance?.filter(f => typeof f === 'string') || [],
+            photographs: reportData.photographs?.filter(f => typeof f === 'string') || [],
+            feedback: reportData.feedback?.map(f => f.analytics || null) || [],
+          });
+
+          setIsLoading(false);
+        } catch (err) {
+          console.error('Error fetching report:', err);
+          setError('Failed to load report data.');
+          setIsLoading(false);
+        }
+      };
+      fetchReport();
+    }
+
+    // Handle click outside to close SDG dropdown
+    const handleClickOutside = (event) => {
+      if (sdgDropdownRef.current && !sdgDropdownRef.current.contains(event.target)) {
+        setIsSdgDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isEditMode, reportId]);
 
   const handleChange = e => {
-    const { name, value } = e.target;
-    const newFormData = { ...formData, [name]: value };
-    if (name === 'maleParticipants' || name === 'femaleParticipants') {
-      const male = name === 'maleParticipants' ? value : formData.maleParticipants;
-      const female = name === 'femaleParticipants' ? value : formData.femaleParticipants;
-      newFormData.totalParticipants = (parseInt(male) || 0) + (parseInt(female) || 0);
+    const { name, value, type, checked } = e.target;
+
+    if (name === 'sdgs') {
+      setFormData(prev => {
+        const sdgs = checked
+          ? [...prev.sdgs, value]
+          : prev.sdgs.filter(sdg => sdg !== value);
+        return { ...prev, sdgs };
+      });
+    } else {
+      const newFormData = { ...formData, [name]: value };
+      if (name === 'maleParticipants' || name === 'femaleParticipants') {
+        const male = name === 'maleParticipants' ? value : formData.maleParticipants;
+        const female = name === 'femaleParticipants' ? value : formData.femaleParticipants;
+        newFormData.totalParticipants = (parseInt(male) || 0) + (parseInt(female) || 0);
+      }
+      setFormData(newFormData);
     }
-    setFormData(newFormData);
   };
 
   const handleSingleFileChange = (e, field) => {
@@ -181,7 +279,6 @@ function CreateReport() {
 
   const removeFile = (field, index = null, isExisting = false) => {
     if (isExisting) {
-      // Remove from existingFiles and previews (edit mode)
       setExistingFiles(prev => {
         if (field === 'poster' || field === 'permissionImage') {
           return { ...prev, [field]: null };
@@ -210,7 +307,6 @@ function CreateReport() {
       });
     }
 
-    // Remove from formData and previews (new files)
     setFormData(prev => {
       if (field === 'poster' || field === 'permissionImage') {
         return { ...prev, [field]: null };
@@ -245,7 +341,7 @@ function CreateReport() {
     console.log(`Removed file from ${field}${index !== null ? `[${index}]` : ''}`);
   };
 
-const sanitizeFormData = (data) => {
+  const sanitizeFormData = (data) => {
   if (typeof data === "string") {
     return data.trim().replace(/\s+/g, " ");
   }
@@ -257,7 +353,16 @@ const sanitizeFormData = (data) => {
   if (typeof data === "object" && data !== null) {
     const sanitizedObj = {};
     Object.keys(data).forEach((key) => {
-      sanitizedObj[key] = sanitizeFormData(data[key]);
+      let value = sanitizeFormData(data[key]);
+
+      // ✅ Normalize organizedBy: Title Case (first letter of each word capitalized)
+      if (key === "organizedBy" && typeof value === "string") {
+        value = value
+          .toLowerCase()
+          .replace(/\b\w/g, (char) => char.toUpperCase());
+      }
+
+      sanitizedObj[key] = value;
     });
     return sanitizedObj;
   }
@@ -265,145 +370,142 @@ const sanitizeFormData = (data) => {
   return data; // numbers, booleans, null, etc.
 };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setIsSubmitting(true);
-  setError("");
-  setSuccess("");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError('');
+    setSuccess('');
 
-  // ✅ Clean ALL fields deeply (summary, objectives, outcomes, etc.)
-  const cleanedFormData = sanitizeFormData(formData);
-  setFormData(cleanedFormData);
+    const cleanedFormData = sanitizeFormData(formData);
+    setFormData(cleanedFormData);
 
-  const missingFields = [];
-  if (!cleanedFormData.eventName) missingFields.push("Event Name");
-  if (!cleanedFormData.venue) missingFields.push("Venue");
-  if (!cleanedFormData.organizedBy) missingFields.push("Organized By");
-  if (
-    !cleanedFormData.totalParticipants ||
-    isNaN(cleanedFormData.totalParticipants) ||
-    cleanedFormData.totalParticipants <= 0
-  )
-    missingFields.push("Total Participants");
-  if (!cleanedFormData.timeFrom) missingFields.push("Time From");
-  if (!cleanedFormData.timeTo) missingFields.push("Time To");
-  if (cleanedFormData.tenure === "1 Day" && !cleanedFormData.date)
-    missingFields.push("Date");
-  if (
-    cleanedFormData.tenure === "Multiple Days" &&
-    (!cleanedFormData.dateFrom || !cleanedFormData.dateTo)
-  ) {
-    if (!cleanedFormData.dateFrom) missingFields.push("Date From");
-    if (!cleanedFormData.dateTo) missingFields.push("Date To");
-  }
-  if (
-    cleanedFormData.eventType === "Other" &&
-    !cleanedFormData.customEventType
-  )
-    missingFields.push("Custom Event Type");
+    const missingFields = [];
+    if (!cleanedFormData.eventName) missingFields.push('Event Name');
+    if (!cleanedFormData.venue) missingFields.push('Venue');
+    if (!cleanedFormData.organizedBy) missingFields.push('Organized By');
+    if (
+      !cleanedFormData.totalParticipants ||
+      isNaN(cleanedFormData.totalParticipants) ||
+      cleanedFormData.totalParticipants <= 0
+    )
+      missingFields.push('Total Participants');
+    if (!cleanedFormData.timeFrom) missingFields.push('Time From');
+    if (!cleanedFormData.timeTo) missingFields.push('Time To');
+    if (cleanedFormData.tenure === '1 Day' && !cleanedFormData.date)
+      missingFields.push('Date');
+    if (
+      cleanedFormData.tenure === 'Multiple Days' &&
+      (!cleanedFormData.dateFrom || !cleanedFormData.dateTo)
+    ) {
+      if (!cleanedFormData.dateFrom) missingFields.push('Date From');
+      if (!cleanedFormData.dateTo) missingFields.push('Date To');
+    }
+    if (
+      cleanedFormData.eventType === 'Other' &&
+      !cleanedFormData.customEventType
+    )
+      missingFields.push('Custom Event Type');
+    if (!cleanedFormData.sdgs.length) missingFields.push('Sustainable Development Goals');
 
-  if (missingFields.length > 0) {
-    const errorMsg = `Missing required fields: ${missingFields.join(", ")}.`;
-    console.log("Validation failed:", errorMsg);
-    setError(errorMsg);
-    setIsSubmitting(false);
-    return;
-  }
+    if (missingFields.length > 0) {
+      const errorMsg = `Missing required fields: ${missingFields.join(', ')}.`;
+      console.log('Validation failed:', errorMsg);
+      setError(errorMsg);
+      setIsSubmitting(false);
+      return;
+    }
 
-  const submissionData = new FormData();
-  try {
-    Object.keys(cleanedFormData).forEach((key) => {
-      if (key === "poster" || key === "permissionImage") {
-        if (formData[key] instanceof File) {
-          submissionData.append(key, formData[key]);
-          console.log(
-            `Appended ${key}: ${formData[key].name}, size: ${formData[key].size} bytes`
+    const submissionData = new FormData();
+    try {
+      Object.keys(cleanedFormData).forEach(key => {
+        if (key === 'poster' || key === 'permissionImage') {
+          if (formData[key] instanceof File) {
+            submissionData.append(key, formData[key]);
+            console.log(
+              `Appended ${key}: ${formData[key].name}, size: ${formData[key].size} bytes`
+            );
+          }
+        } else if (key === 'attendance' || key === 'photographs') {
+          if (Array.isArray(formData[key])) {
+            formData[key].forEach((file, index) => {
+              if (file instanceof File) {
+                submissionData.append(key, file);
+                console.log(
+                  `Appended ${key}[${index}]: ${file.name}, size: ${file.size} bytes`
+                );
+              }
+            });
+          }
+        } else if (key === 'feedback') {
+          const feedbackWithAnalytics = cleanedFormData.feedback.map(
+            (item, index) => ({
+              ...item,
+              analytics:
+                item.analytics instanceof File
+                  ? `feedbackAnalytics-${index}`
+                  : null,
+            })
           );
-        }
-      } else if (key === "attendance" || key === "photographs") {
-        if (Array.isArray(formData[key])) {
-          formData[key].forEach((file, index) => {
-            if (file instanceof File) {
-              submissionData.append(key, file);
+          submissionData.append('feedback', JSON.stringify(feedbackWithAnalytics));
+          formData.feedback.forEach((item, index) => {
+            if (item.analytics instanceof File) {
+              submissionData.append(`feedbackAnalytics-${index}`, item.analytics);
               console.log(
-                `Appended ${key}[${index}]: ${file.name}, size: ${file.size} bytes`
+                `Appended feedbackAnalytics-${index}: ${item.analytics.name}, size: ${item.analytics.size} bytes`
               );
             }
           });
+        } else if (Array.isArray(cleanedFormData[key])) {
+          submissionData.append(key, JSON.stringify(cleanedFormData[key]));
+        } else {
+          submissionData.append(key, cleanedFormData[key] || '');
         }
-      } else if (key === "feedback") {
-        const feedbackWithAnalytics = cleanedFormData.feedback.map(
-          (item, index) => ({
-            ...item,
-            analytics:
-              item.analytics instanceof File
-                ? `feedbackAnalytics-${index}`
-                : null,
-          })
-        );
-        submissionData.append(
-          "feedback",
-          JSON.stringify(feedbackWithAnalytics)
-        );
-        formData.feedback.forEach((item, index) => {
-          if (item.analytics instanceof File) {
-            submissionData.append(`feedbackAnalytics-${index}`, item.analytics);
-            console.log(
-              `Appended feedbackAnalytics-${index}: ${item.analytics.name}, size: ${item.analytics.size} bytes`
-            );
-          }
-        });
-      } else if (Array.isArray(cleanedFormData[key])) {
-        submissionData.append(key, JSON.stringify(cleanedFormData[key]));
-      } else {
-        submissionData.append(key, cleanedFormData[key] || "");
-      }
-    });
-  } catch (err) {
-    console.error("Error building FormData:", err.message);
-    setError("Failed to prepare form data.");
-    setIsSubmitting(false);
-    return;
-  }
+      });
+    } catch (err) {
+      console.error('Error building FormData:', err.message);
+      setError('Failed to prepare form data.');
+      setIsSubmitting(false);
+      return;
+    }
 
-  try {
-    const token = localStorage.getItem("token");
-    if (!token) throw new Error("No authentication token found.");
-    const url = isEditMode
-      ? `${import.meta.env.VITE_API_URL}/api/reports/${reportId}`
-      : `${import.meta.env.VITE_API_URL}/api/reports/create`;
-    const method = isEditMode ? "put" : "post";
-    console.log(`Sending ${method.toUpperCase()} request to ${url}`);
-    const res = await axios[method](url, submissionData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    console.log("Submission successful:", res.data);
-    setSuccess(
-      isEditMode
-        ? "Report updated successfully!"
-        : "Report submitted successfully!"
-    );
-    setIsSubmitted(true);
-    setSavedReportId(res.data.reportId || reportId);
-    setShowModal(true);
-  } catch (error) {
-    console.error("Submission error:", {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-    });
-    setError(
-      `Failed to ${
-        isEditMode ? "update" : "submit"
-      }: ${error.response?.data?.error || error.message}`
-    );
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No authentication token found.');
+      const url = isEditMode
+        ? `${import.meta.env.VITE_API_URL}/api/reports/${reportId}`
+        : `${import.meta.env.VITE_API_URL}/api/reports/create`;
+      const method = isEditMode ? 'put' : 'post';
+      console.log(`Sending ${method.toUpperCase()} request to ${url}`);
+      const res = await axios[method](url, submissionData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      console.log('Submission successful:', res.data);
+      setSuccess(
+        isEditMode
+          ? 'Report updated successfully!'
+          : 'Report submitted successfully!'
+      );
+      setIsSubmitted(true);
+      setSavedReportId(res.data.reportId || reportId);
+      setShowModal(true);
+    } catch (error) {
+      console.error('Submission error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      setError(
+        `Failed to ${
+          isEditMode ? 'update' : 'submit'
+        }: ${error.response?.data?.error || error.message}`
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleDownload = async () => {
     const id = savedReportId || reportId;
@@ -460,7 +562,23 @@ const handleSubmit = async (e) => {
   return (
     <div className="reportcreate">
       <div className="create-report">
-        <h2>Create Report </h2>
+        <button
+          onClick={handleBack}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#3B82F6',
+            color: '#1e88e5',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '16px',
+          }}
+          onMouseOver={e => (e.target.style.backgroundColor = '#2563EB')}
+          onMouseOut={e => (e.target.style.backgroundColor = '#3B82F6')}
+        >
+          ↩
+        </button>
+        <h2>{isEditMode ? 'Edit Report' : 'Create Report'}</h2>
         {error && <div className="error" style={{ color: 'red', fontSize: '14px', marginBottom: '10px' }}>{error}</div>}
         {success && <div className="success" style={{ color: 'green', fontSize: '14px', marginBottom: '10px' }}>{success}</div>}
         {downloadError && <div className="error" style={{ color: 'red', fontSize: '14px', marginBottom: '10px' }}>{downloadError}</div>}
@@ -480,7 +598,7 @@ const handleSubmit = async (e) => {
             <input type="text" value={formData.department} disabled style={{ fontFamily: 'Times New Roman', fontSize: '12px' }} />
           </div>
           <div className="form-group">
-            <label>Academic Year *</label>
+            <label>Academic Year <span style={{ color: 'red' }}>*</span></label>
             <select name="academicYear" value={formData.academicYear} onChange={handleChange} required style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}>
               <option value="2024-25">2024-25</option>
               <option value="2025-26">2025-26</option>
@@ -488,7 +606,7 @@ const handleSubmit = async (e) => {
             </select>
           </div>
           <div className="form-group">
-            <label>Organized By *</label>
+            <label>Organized By <span style={{ color: 'red' }}>*</span></label>
             <input
               type="text"
               name="organizedBy"
@@ -497,9 +615,10 @@ const handleSubmit = async (e) => {
               required
               style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
             />
+            <h5 style={{ color: 'grey' }}>Enter Complete name</h5>
           </div>
           <div className="form-group">
-            <label>Event Name *</label>
+            <label>Event Name <span style={{ color: 'red' }}>*</span></label>
             <input
               type="text"
               name="eventName"
@@ -510,14 +629,14 @@ const handleSubmit = async (e) => {
             />
           </div>
           <div className="form-group">
-            <label>Tenure *</label>
+            <label>Tenure <span style={{ color: 'red' }}>*</span></label>
             <select name="tenure" value={formData.tenure} onChange={handleChange} style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}>
               <option value="1 Day">1 Day</option>
               <option value="Multiple Days">Multiple Days</option>
             </select>
           </div>
           <div className="form-group">
-            <label>Date *</label>
+            <label>Date <span style={{ color: 'red' }}>*</span></label>
             {formData.tenure === '1 Day' ? (
               <input
                 type="date"
@@ -549,7 +668,7 @@ const handleSubmit = async (e) => {
             )}
           </div>
           <div className="form-group">
-            <label>Time *</label>
+            <label>Time <span style={{ color: 'red' }}>*</span></label>
             <div className="time-range">
               <input
                 type="time"
@@ -570,7 +689,7 @@ const handleSubmit = async (e) => {
             </div>
           </div>
           <div className="form-group">
-            <label>Venue *</label>
+            <label>Venue <span style={{ color: 'red' }}>*</span></label>
             <input
               type="text"
               name="venue"
@@ -587,7 +706,7 @@ const handleSubmit = async (e) => {
                 <img
                   src={previews.poster || existingFiles.poster}
                   alt="Poster Preview"
-                  style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa', marginRight: 8 ,paddingTop: 0}}
+                  style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa', marginRight: 8, paddingTop: 0 }}
                 />
                 <button
                   type="button"
@@ -601,10 +720,10 @@ const handleSubmit = async (e) => {
             <input
               type="file"
               accept="image/jpeg,image/png"
-              onChange={(e) => handleSingleFileChange(e, 'poster')}
+              onChange={e => handleSingleFileChange(e, 'poster')}
               style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
             />
-            <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
+            <h5 style={{ color: 'grey' }}>(Choose only png/jpeg file)</h5>
           </div>
           <div className="form-group">
             <label>Speakers</label>
@@ -613,13 +732,13 @@ const handleSubmit = async (e) => {
                 <input
                   type="text"
                   value={speaker.name || ''}
-                  onChange={(e) => handleDynamicChange(e, index, 'speakers', 'name')}
+                  onChange={e => handleDynamicChange(e, index, 'speakers', 'name')}
                   placeholder="Speaker name"
                   style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
                 />
                 <textarea
                   value={speaker.background || ''}
-                  onChange={(e) => handleDynamicChange(e, index, 'speakers', 'background')}
+                  onChange={e => handleDynamicChange(e, index, 'speakers', 'background')}
                   placeholder="Speaker background"
                   rows="3"
                   style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
@@ -651,7 +770,7 @@ const handleSubmit = async (e) => {
               <div key={index} className="dynamic-field">
                 <textarea
                   value={objective || ''}
-                  onChange={(e) => handleDynamicChange(e, index, 'objectives')}
+                  onChange={e => handleDynamicChange(e, index, 'objectives')}
                   placeholder={`Objective ${index + 1}`}
                   rows="3"
                   style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
@@ -678,15 +797,16 @@ const handleSubmit = async (e) => {
             </button>
           </div>
           <div className="form-group">
-            <label>Outcomes</label>
+            <label>Outcomes<span style={{ color: 'red' }}>*</span></label>
             {formData.outcomes.map((outcome, index) => (
               <div key={index} className="dynamic-field">
                 <textarea
                   value={outcome || ''}
-                  onChange={(e) => handleDynamicChange(e, index, 'outcomes')}
+                  onChange={e => handleDynamicChange(e, index, 'outcomes')}
                   placeholder={`Outcome ${index + 1}`}
                   rows="3"
                   style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
+                  required
                 />
                 {formData.outcomes.length > 1 && (
                   <button
@@ -710,12 +830,71 @@ const handleSubmit = async (e) => {
             </button>
           </div>
           <div className="form-group">
-            <label>Student Coordinators</label>
+            <label>Sustainable Development Goals (SDG) <span style={{ color: 'red' }}>*</span></label>
+            <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}ref={sdgDropdownRef}>
+              <div
+                className="dropdown-selected"
+                onClick={() => setIsSdgDropdownOpen(!isSdgDropdownOpen)}
+              >
+                <span>
+                  {formData.sdgs.length > 0
+                    ? formData.sdgs.join(', ')
+                    : 'Select SDGs'}
+                </span>
+                <span>{isSdgDropdownOpen ? '▲' : '▼'}</span>
+              </div>
+              {isSdgDropdownOpen && (
+                <div
+                  className="dropdown-menu"
+                >
+                  {SDG_OPTIONS.map((sdg, index) => (
+                    <label
+                      key={index}
+                          style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      borderBottom: index < SDG_OPTIONS.length - 1 ? '1px solid #e5e7eb' : 'none',
+                      fontSize: '14px',
+                      lineHeight: '1.4',
+                      minHeight: '44px',
+                      color: '#374151',
+                      fontWeight: 400
+                    }}
+                    >
+                      <input
+                        type="checkbox"
+                        name="sdgs"
+                        value={sdg}
+                        checked={formData.sdgs.includes(sdg)}
+                        onChange={handleChange}
+                         style={{
+                        marginRight: '12px',
+                        flexShrink: 0,
+                        width: '16px',
+                        height: '16px',
+                        accentColor: '#3b82f6'
+                      }}
+                      />
+                      {sdg}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <h5 style={{ color: 'grey' }}>(Click to select/deselect SDGs)</h5>
+          </div>
+          <div className="form-group">
+            <label>Student Coordinators<span style={{ color: 'red' }}>*</span></label>
             {formData.studentCoordinators.map((coordinator, index) => (
               <div key={index} className="dynamic-field">
                 <textarea
                   value={coordinator || ''}
-                  onChange={(e) => handleDynamicChange(e, index, 'studentCoordinators')}
+                  onChange={e => handleDynamicChange(e, index, 'studentCoordinators')}
                   placeholder={`Student Coordinator ${index + 1}`}
                   rows="3"
                   required
@@ -743,12 +922,12 @@ const handleSubmit = async (e) => {
             </button>
           </div>
           <div className="form-group">
-            <label>Faculty Coordinators</label>
+            <label>Faculty Coordinators<span style={{ color: 'red' }}>*</span></label>
             {formData.facultyCoordinators.map((coordinator, index) => (
               <div key={index} className="dynamic-field">
                 <textarea
                   value={coordinator || ''}
-                  onChange={(e) => handleDynamicChange(e, index, 'facultyCoordinators')}
+                  onChange={e => handleDynamicChange(e, index, 'facultyCoordinators')}
                   placeholder={`Faculty Coordinator ${index + 1}`}
                   rows="3"
                   required
@@ -798,7 +977,7 @@ const handleSubmit = async (e) => {
             />
           </div>
           <div className="form-group">
-            <label>Total Participants *</label>
+            <label>Total Participants <span style={{ color: 'red' }}>*</span></label>
             <input
               type="number"
               name="totalParticipants"
@@ -846,17 +1025,17 @@ const handleSubmit = async (e) => {
               accept="image/jpeg,image/png"
               multiple
               name="attendance[]"
-              onChange={(e) => handleMultipleFileChange(e, 'attendance')}
+              onChange={e => handleMultipleFileChange(e, 'attendance')}
               style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
             />
-            <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
+            <h5 style={{ color: 'grey' }}>(Choose only png/jpeg file)</h5>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
               {(previews.attendance || []).map((url, index) => (
                 <div key={`preview-attendance-${index}`} style={{ position: 'relative' }}>
                   <img
                     src={url}
                     alt={`Attendance Preview ${index + 1}`}
-                    style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa',paddingTop: 0 }}
+                    style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa', paddingTop: 0 }}
                   />
                   <button
                     type="button"
@@ -872,7 +1051,7 @@ const handleSubmit = async (e) => {
                   <img
                     src={url}
                     alt={`Existing Attendance ${index + 1}`}
-                    style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa' ,paddingTop: 0}}
+                    style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa', paddingTop: 0 }}
                   />
                   <button
                     type="button"
@@ -886,13 +1065,13 @@ const handleSubmit = async (e) => {
             </div>
           </div>
           <div className="form-group">
-            <label>Permission Image</label>
+            <label>Permission Image <span style={{ color: 'red' }}>*</span></label>
             {(previews.permissionImage || existingFiles.permissionImage) && (
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
                 <img
                   src={previews.permissionImage || existingFiles.permissionImage}
                   alt="Permission Preview"
-                  style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa', marginRight: 8 ,paddingTop: 0}}
+                  style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa', marginRight: 8, paddingTop: 0 }}
                 />
                 <button
                   type="button"
@@ -906,10 +1085,11 @@ const handleSubmit = async (e) => {
             <input
               type="file"
               accept="image/jpeg,image/png"
-              onChange={(e) => handleSingleFileChange(e, 'permissionImage')}
+              onChange={e => handleSingleFileChange(e, 'permissionImage')}
               style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
+              required
             />
-            <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
+            <h5 style={{ color: 'grey' }}>(Choose only png/jpeg file)</h5>
           </div>
           <div className="form-group">
             <label>Feedback</label>
@@ -918,13 +1098,13 @@ const handleSubmit = async (e) => {
                 <input
                   type="text"
                   value={item.question || ''}
-                  onChange={(e) => handleDynamicChange(e, index, 'feedback', 'question')}
+                  onChange={e => handleDynamicChange(e, index, 'feedback', 'question')}
                   placeholder={`Question ${index + 1}`}
                   style={{ fontFamily: 'Times New Roman', fontSize: '12px', marginBottom: 4, width: '100%' }}
                 />
                 <textarea
                   value={item.answer || ''}
-                  onChange={(e) => handleDynamicChange(e, index, 'feedback', 'answer')}
+                  onChange={e => handleDynamicChange(e, index, 'feedback', 'answer')}
                   placeholder="Answer/Review"
                   rows="3"
                   style={{ fontFamily: 'Times New Roman', fontSize: '12px', marginBottom: 4, width: '100%' }}
@@ -934,7 +1114,7 @@ const handleSubmit = async (e) => {
                     <img
                       src={previews.feedback[index] || existingFiles.feedback[index]}
                       alt={`Feedback Analytics Preview ${index + 1}`}
-                      style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa' ,paddingTop: 0}}
+                      style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa', paddingTop: 0 }}
                     />
                     <button
                       type="button"
@@ -949,10 +1129,10 @@ const handleSubmit = async (e) => {
                   type="file"
                   accept="image/jpeg,image/png"
                   name={`feedbackAnalytics-${index}`}
-                  onChange={(e) => handleFeedbackAnalytics(e, index)}
+                  onChange={e => handleFeedbackAnalytics(e, index)}
                   style={{ fontFamily: 'Times New Roman', fontSize: '12px', marginBottom: 4 }}
                 />
-                <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
+                <h5 style={{ color: 'grey' }}>(Choose only png/jpeg file)</h5>
                 {formData.feedback.length > 1 && (
                   <button
                     type="button"
@@ -981,17 +1161,17 @@ const handleSubmit = async (e) => {
               accept="image/jpeg,image/png"
               multiple
               name="photographs[]"
-              onChange={(e) => handleMultipleFileChange(e, 'photographs')}
+              onChange={e => handleMultipleFileChange(e, 'photographs')}
               style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
             />
-            <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
+            <h5 style={{ color: 'grey' }}>(Choose only png/jpeg file)</h5>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
               {(previews.photographs || []).map((url, index) => (
                 <div key={`preview-photo-${index}`} style={{ position: 'relative' }}>
                   <img
                     src={url}
                     alt={`Photo Preview ${index + 1}`}
-                    style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa' ,paddingTop: 0}}
+                    style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa', paddingTop: 0 }}
                   />
                   <button
                     type="button"
@@ -1007,7 +1187,7 @@ const handleSubmit = async (e) => {
                   <img
                     src={url}
                     alt={`Existing Photograph ${index + 1}`}
-                    style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa' ,paddingTop: 0}}
+                    style={{ height: 80, width: 'auto', objectFit: 'contain', border: '1px solid #aaa', paddingTop: 0 }}
                   />
                   <button
                     type="button"
@@ -1022,13 +1202,13 @@ const handleSubmit = async (e) => {
           </div>
           <div className="button-group" style={{ marginTop: 20 }}>
             <button
-    type="submit"
-    className="submit-btn"
-    disabled={isSubmitted || isSubmitting }
-    style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
-  >
-    {isSubmitting ? 'Saving...' : 'Submit Report'}
-  </button>
+              type="submit"
+              className="submit-btn"
+              disabled={isSubmitted || isSubmitting}
+              style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
+            >
+              {isSubmitting ? 'Saving...' : 'Submit Report'}
+            </button>
             <button
               type="button"
               className="download-btn"
@@ -1041,6 +1221,7 @@ const handleSubmit = async (e) => {
           </div>
         </form>
       </div>
+      
     </div>
   );
 }

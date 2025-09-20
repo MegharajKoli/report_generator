@@ -15,6 +15,7 @@ const reportSchema = new mongoose.Schema({
   poster: { type: Buffer },
   objectives: [{ type: String }],
   outcomes: [{ type: String }],
+  sdgs: [{ type: String, required: true }],
   studentCoordinators: [{ type: String }],
   facultyCoordinators: [{ type: String }],
   totalParticipants: { type: Number, required: true },

@@ -25,6 +25,12 @@ const userSchema = new mongoose.Schema({
       "Electronics and Computer Science Engineering",
       "Mechanical and Automation",
       "Civil Engineering",
+      "General Engineering",
+      "Sports",
+      "NSS", 
+      "Library", 
+      "cultural",
+      "Walchand Institute of Technology",
       "Office", // specifically for the office login
     ],
   },

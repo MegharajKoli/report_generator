@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { SDG_DEFINITIONS } from './sdgDefinitions';
 
 // Convert Buffer-like objects (e.g., {type:"Buffer", data:[...]}) to base64 string
 function bufferToBase64(input) {
@@ -227,7 +228,7 @@ export const generateAnnualPDF = async (clubName, academicYear, reports) => {
     currentY = marginTop;
 
     // Objectives
-    if (report.objectives?.length > 0) {
+    if (report.objectives && report.objectives?.length > 0) {
       addNewPageIfNeeded(20);
       addTextSection('Objectives:', 0, 14, 'bold', 'left');
       currentY += 5;
@@ -238,7 +239,7 @@ export const generateAnnualPDF = async (clubName, academicYear, reports) => {
     }
 
     // Outcomes
-    if (report.outcomes?.length > 0) {
+    if (report.outcomes && report.outcomes?.length > 0) {
       addNewPageIfNeeded(20);
       addTextSection('Outcomes:', 0, 14, 'bold', 'left');
       currentY += 5;
@@ -248,8 +249,21 @@ export const generateAnnualPDF = async (clubName, academicYear, reports) => {
       currentY += 10;
     }
 
+        if (report.sdgs && report.sdgs.length > 0) {
+          addNewPageIfNeeded(20);
+          addTextSection('Sustainable Development Goals:', 0, 14, 'bold', 'left');
+          currentY += 5;
+    
+          report.sdgs.forEach((sdgTitle, index) => {
+            const definition = SDG_DEFINITIONS[sdgTitle] || 'No definition available.';
+            addTextSection(`${index + 1}. ${sdgTitle}`, 5, 12, 'bold', 'left');
+            addTextSection(definition, 10, 12, 'normal', 'justify');
+            currentY += 5; // Extra space between SDGs
+          });
+        }
+
     // Student Coordinators
-    if (report.studentCoordinators?.length > 0) {
+    if (report.studentCoordinators && report.studentCoordinators?.length > 0) {
       addNewPageIfNeeded(20);
       addTextSection('Student Coordinators:', 0, 14, 'bold', 'left');
       currentY += 5;
@@ -260,7 +274,7 @@ export const generateAnnualPDF = async (clubName, academicYear, reports) => {
     }
 
     // Faculty Coordinators
-    if (report.facultyCoordinators?.length > 0) {
+    if (report.facultyCoordinators && report.facultyCoordinators?.length > 0) {
       addNewPageIfNeeded(20);
       addTextSection('Faculty Coordinators:', 0, 14, 'bold', 'left');
       currentY += 5;
@@ -281,7 +295,7 @@ export const generateAnnualPDF = async (clubName, academicYear, reports) => {
     }
 
     // Speakers
-    if (report.speakers?.length > 0) {
+    if (report.speakers && report.speakers?.length > 0) {
       addNewPageIfNeeded(20);
       addTextSection('Speakers:', 0, 14, 'bold', 'left');
       currentY += 5;
@@ -394,11 +408,12 @@ export const generateAnnualPDF = async (clubName, academicYear, reports) => {
       currentY += 10;
     }
 
- doc.addPage();
-    currentY = marginTop;
+
     
     // Photographs
-    if (report.photographs?.length > 0) {
+    if (reports.photographs && report.photographs?.length > 0) {
+       doc.addPage();
+       currentY = marginTop;
       addNewPageIfNeeded(20);
       addTextSection('Photographs:', 0, 14, 'bold', 'center');
       currentY += 5;
@@ -485,7 +500,7 @@ export const generateAnnualPDF = async (clubName, academicYear, reports) => {
     }
 
     // Attendance Images
-    if (report.attendance?.length > 0) {
+    if (report.attendance && report.attendance?.length > 0) {
       for (const [index, img] of report.attendance.entries()) {
         doc.addPage();
         currentY = marginTop;
