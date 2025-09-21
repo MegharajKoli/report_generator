@@ -37,7 +37,6 @@ function Header() {
           {user?.role === "department"? user.department === "Walchand Institute of Technology"?
            user.department: `Department of ${user.department}`
           : "Office Admin"}
-
         </h1>
 
         <button

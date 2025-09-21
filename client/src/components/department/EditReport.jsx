@@ -1089,7 +1089,6 @@ function EditReport() {
               accept="image/jpeg,image/png"
               onChange={e => handleSingleFileChange(e, "permissionImage")}
               style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
-              required
             />
             <h6 style={{color : "grey"}}>(Choose only png/jpeg file)</h6>
           </div>

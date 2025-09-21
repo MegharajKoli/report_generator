@@ -1,69 +1,117 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import "jspdf-autotable";
 import "../../styles/DownloadAnnualReports.css";
 import { generateAnnualPDF } from "../../utils/generateannualpdf";
 
 const DownloadAnnualReports = () => {
   const [reports, setReports] = useState([]);
-  const [searchYear, setSearchYear] = useState(""); // 🔄 changed name from `search` to `searchYear`
-  const [userDept, setUserDept] = useState("");
+  const [searchYear, setSearchYear] = useState("");
   const [searchOrg, setSearchOrg] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [userDept, setUserDept] = useState("");
+  const [organizations, setOrganizations] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [downloading, setDownloading] = useState({});
-
-  const handleBack = () => {
-    navigate("/dashboard-dept");
-  };
+  const [showModal, setShowModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
 
+  // Hardcoded academic years
+  const academicYears = [
+    "2025-26",
+    "2024-25",
+    "2023-24",
+    "2022-23",
+    "2021-22",
+  ].sort().reverse();
+
+  // Fetch user's department and organizations on mount
   useEffect(() => {
     const dept = localStorage.getItem("department");
     setUserDept(dept);
 
-    const fetchReports = async () => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reports/annual`);
-        if (!response.ok) throw new Error("Failed to fetch reports");
-        const data = await response.json();
-        console.log("📦 Reports from backend:", data);
-        setReports(data);
-      } catch (error) {
-        console.error("Error fetching annual reports:", error);
-      } finally {
+    const fetchOrganizations = async () => {
+      if (!dept) {
+        setError("No department found in localStorage. Please log in again.");
         setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/reports/annual/unique/orgs?department=${encodeURIComponent(dept)}`
+        );
+        if (!response.ok) throw new Error("Failed to fetch organizations");
+        const orgsData = await response.json();
+        setOrganizations(orgsData.sort());
+        setError("");
+      } catch (error) {
+        console.error("Error fetching organizations:", error);
+        setOrganizations([]);
+        setError("Failed to load organizations. Please try again.");
       }
     };
 
-    fetchReports();
+    fetchOrganizations();
   }, []);
 
-  // 📌 Unique academic years for dropdown
-  const academicYears = [...new Set(reports.map(r => r.academicYear))].sort().reverse();
-
-  // 🔍 filter by dept + year + org
-  const filteredReports = reports.filter((report) => {
-    const matchesDept = report.department === userDept;
-    const matchesEvent = searchYear ? report.academicYear === searchYear : true;
-    const matchesOrg = report.organizedBy?.toLowerCase().includes(searchOrg.toLowerCase());
-    return matchesDept && matchesEvent && matchesOrg;
-  });
-
-  // 🔢 sort by academic year (latest first), then event name
-  const sortedReports = [...filteredReports].sort((a, b) => {
-    const yearA = parseInt(a.academicYear?.split("-")[0], 10);
-    const yearB = parseInt(b.academicYear?.split("-")[0], 10);
-
-    if (yearA !== yearB) {
-      return yearB - yearA; // latest year first
+  // Handle search button click
+  const handleSearch = async () => {
+    if (!searchYear || !searchOrg) {
+      setModalMessage("Please select both Academic Year and Organization before searching.");
+      setShowModal(true);
+      return;
     }
 
-    return (a.eventName || "").localeCompare(b.eventName || "");
-  });
+    setIsLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({
+        department: userDept,
+        academicYear: searchYear,
+        organizedBy: searchOrg,
+        page,
+        limit: 50,
+      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/reports/annual?${params}`
+      );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch reports");
+      }
+      const data = await response.json();
+      console.log("📦 Filtered reports from backend:", reports);
+      setReports(data);
+      if (data.length === 0) {
+        setError("No reports found for the selected filters.");
+      }
+    } catch (error) {
+      console.error("Error fetching annual reports:", error);
+      setReports([]);
+      setError(error.message || "Failed to load reports. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  // 📦 group by Club + Year
+  // Handle back button
+  const handleBack = () => {
+    navigate("/dashboard-dept");
+  };
+
+  // Close modal
+  const closeModal = () => {
+    setShowModal(false);
+    setModalMessage("");
+  };
+
+  // Group reports by Organization + Year
   const groupedReports = {};
-  sortedReports.forEach((report) => {
+  reports.forEach((report) => {
     const key = `${report.organizedBy} - ${report.academicYear}`;
     if (!groupedReports[key]) groupedReports[key] = [];
     groupedReports[key].push(report);
@@ -76,63 +124,48 @@ const DownloadAnnualReports = () => {
       await generateAnnualPDF(club, year, reports);
     } catch (error) {
       console.error("Error generating PDF:", error);
+      setError("Failed to generate PDF. Please try again.");
     } finally {
       setDownloading((prev) => ({ ...prev, [key]: false }));
     }
   };
-  
-
-  if (isLoading) {
-    return (
-      <div className="loading-container" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh" }}>
-        
-        <div className="loading-spinner" style={{
-          border: "4px solid #f3f3f3",
-          borderTop: "4px solid #3498db",
-          borderRadius: "50%",
-          width: "40px",
-          height: "40px",
-          animation: "spin 1s linear infinite",
-        }}></div>
-        <p style={{ fontFamily: "Times New Roman", fontSize: "14px", marginTop: "10px" }}>
-          Please wait while we load your reports
-        </p>
-      </div>
-      
-    );
-  }
 
   return (
     <div className="annual-reports-container">
-    
-      <h2>Annual Reports</h2>
-               <button
-      onClick={handleBack}
-      style={{
-        padding: "10px 20px",
-        backgroundColor: "#3B82F6",
-        color: "black",
-        border: "none",
-        borderRadius: "6px",
-        cursor: "pointer",
-        fontSize: "16px",
-      }}
-      onMouseOver={(e) => (e.target.style.backgroundColor = "#2563EB")}
-      onMouseOut={(e) => (e.target.style.backgroundColor = "#3B82F6")}
-    >
-    ↩
-    </button>
+      {showModal && (
+        <div className="modal">
+          <div className="modal-content">
+            <p>{modalMessage}</p>
+            <button onClick={closeModal}>OK</button>
+          </div>
+        </div>
+      )}
 
-      {/* 🔍 Search */}
+      {error && (
+        <div className="error-message">
+          <p>{error}</p>
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Please wait while we load reports</p>
+        </div>
+      )}
+
+      <button className="back-btn" onClick={handleBack}>
+        ↩
+      </button>
+      <h2>Annual Reports - {userDept}</h2>
+
       <div className="search">
-        {/* Academic Year Dropdown */}
         <select
-        id="year"
           className="search-bar"
           value={searchYear}
           onChange={(e) => setSearchYear(e.target.value)}
         >
-          <option  value="">All Academic Years</option>
+          <option value="">Select Academic Year</option>
           {academicYears.map((year, idx) => (
             <option key={idx} value={year}>
               {year}
@@ -140,23 +173,42 @@ const DownloadAnnualReports = () => {
           ))}
         </select>
 
-        {/* Organization Search */}
-        <input
-          type="text"
-          placeholder="Search by Organization"
+        <select
           className="search-bar"
           value={searchOrg}
           onChange={(e) => setSearchOrg(e.target.value)}
-        />
+          disabled={!userDept}
+        >
+          <option value="">Select Organization</option>
+          {organizations.length === 0 ? (
+            <option value="" disabled>
+              {userDept ? "No organizations available" : "Department not loaded"}
+            </option>
+          ) : (
+            organizations.map((org, idx) => (
+              <option key={idx} value={org}>
+                {org}
+              </option>
+            ))
+          )}
+        </select>
+
+        <button className="search-btn" onClick={handleSearch}>
+          Search
+        </button>
       </div>
 
-      {/* 🟢 Show message if no reports */}
-      {sortedReports.length === 0 ? (
-        <p style={{ textAlign: "center", marginTop: "20px", fontFamily: "Times New Roman", fontSize: "16px", color: "#555" }}>
-          No reports found
-        </p>
-      ) : (
-        /* 📋 Grouped Reports */
+      {!isLoading && reports.length === 0 && (
+        <div className="no-reports">
+          <p>
+            {searchYear && searchOrg
+              ? "No reports found for the selected filters."
+              : "Please select filters and click Search."}
+          </p>
+        </div>
+      )}
+
+      {!isLoading &&
         Object.entries(groupedReports).map(([key, reports], idx) => {
           const [club, year] = key.split(" - ");
           return (
@@ -176,7 +228,7 @@ const DownloadAnnualReports = () => {
                 </thead>
                 <tbody>
                   {reports.map((r, i) => (
-                    <tr key={r._id || i}>
+                    <tr key={r.reportId || i}>
                       <td>{i + 1}</td>
                       <td>{r.eventName}</td>
                       <td>{r.organizedBy || "N/A"}</td>
@@ -197,8 +249,7 @@ const DownloadAnnualReports = () => {
               </div>
             </div>
           );
-        })
-      )}
+        })}
     </div>
   );
 };

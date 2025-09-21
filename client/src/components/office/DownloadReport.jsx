@@ -1,61 +1,122 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import "jspdf-autotable";
 import "../../styles/DownloadAnnualReports.css";
 import { generateAnnualPDF } from "../../utils/generateannualpdf";
 
 const DownloadReport = () => {
   const [reports, setReports] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
   const [searchYear, setSearchYear] = useState("");
   const [searchOrg, setSearchOrg] = useState("");
   const [searchDept, setSearchDept] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Only load during fetch
   const [downloading, setDownloading] = useState({});
+  const [showModal, setShowModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  // Hardcoded department list
+  const departments = [
+    "Mechanical and Automation",
+    "Computer Science and Engineering",
+    "Civil Engineering",
+    "Electronics and Telecommunication Engineering",
+    "Electronics and Computer Science Engineering",
+    "Information Technology",
+    "General Engineering",
+    "central",
+  ];
+
+  // Hardcoded academic years
+  const academicYears = [
+    "2025-26",
+    "2024-25",
+    "2023-24",
+    "2022-23",
+    "2021-22",
+  ].sort().reverse();
+
+  // Fetch organizations when department changes
   useEffect(() => {
-    const fetchReports = async () => {
+    const fetchOrganizations = async () => {
+      if (!searchDept) {
+        setOrganizations([]);
+        setSearchOrg("");
+        return;
+      }
+
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/reports/annual`);
-        if (!response.ok) throw new Error("Failed to fetch reports");
-        const data = await response.json();
-        console.log("📦 Reports from backend:", data);
-        setReports(data);
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/reports/annual/unique/orgs?department=${encodeURIComponent(searchDept)}`
+        );
+        if (!response.ok) throw new Error("Failed to fetch organizations");
+        const orgsData = await response.json();
+        setOrganizations(orgsData.sort());
+        setSearchOrg("");
+        setError("");
       } catch (error) {
-        console.error("Error fetching annual reports:", error);
-      } finally {
-        setIsLoading(false);
+        console.error("Error fetching organizations:", error);
+        setOrganizations([]);
+        setSearchOrg("");
+        setError("Failed to load organizations. Please select a different department or try again.");
       }
     };
 
-    fetchReports();
-  }, []);
-const handleBack = ()=>{
+    fetchOrganizations();
+  }, [searchDept]);
+
+  // Handle search button click
+  const handleSearch = async () => {
+    if (!searchDept || !searchYear || !searchOrg) {
+      setModalMessage("Please select Department, Academic Year, and Organization before searching.");
+      setShowModal(true);
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({
+        department: searchDept,
+        academicYear: searchYear,
+        organizedBy: searchOrg,
+      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/reports/annual?${params}`
+      );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch reports");
+      }
+      const data = await response.json();
+      console.log("📦 Filtered reports from backend:", data);
+      setReports(data);
+      if (data.length === 0) {
+        setError("No reports found for the selected filters.");
+      }
+    } catch (error) {
+      console.error("Error fetching annual reports:", error);
+      setReports([]);
+      setError(error.message || "Failed to load reports. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBack = () => {
     navigate("/dashboard-office");
   };
-  // 🔍 filter by dept + org + year
-  const filteredReports = reports.filter((report) => {
-    const matchesDept = searchDept ? report.department === searchDept : true;
-    const matchesEvent = searchYear ? report.academicYear === searchYear : true;
-    const matchesOrg = report.organizedBy?.toLowerCase().includes(searchOrg.toLowerCase());
-    return matchesDept && matchesEvent && matchesOrg;
-  });
 
-  // 🔢 sort by department > academic year (latest first) > event name
-  const sortedReports = [...filteredReports].sort((a, b) => {
-    const deptA = (a.department || "").localeCompare(b.department || "");
-    const deptB = (b.department || "").localeCompare(a.department || "");
-    if (deptA !== deptB) return deptA - deptB;
+  const closeModal = () => {
+    setShowModal(false);
+    setModalMessage("");
+  };
 
-    const yearA = parseInt(a.academicYear?.split("-")[0], 10);
-    const yearB = parseInt(b.academicYear?.split("-")[0], 10);
-    if (yearA !== yearB) return yearB - yearA;
-
-    return (a.eventName || "").localeCompare(b.eventName || "");
-  });
-
-  // 📦 group by Department → Club + Year
+  // Group by Department → Club + Year (no sorting needed, backend handles it)
   const groupedByDept = {};
-  sortedReports.forEach((report) => {
+  reports.forEach((report) => {
     const deptKey = report.department || "Unknown Department";
     if (!groupedByDept[deptKey]) groupedByDept[deptKey] = {};
 
@@ -63,19 +124,6 @@ const handleBack = ()=>{
     if (!groupedByDept[deptKey][clubKey]) groupedByDept[deptKey][clubKey] = [];
     groupedByDept[deptKey][clubKey].push(report);
   });
-   
-  // 📌 Unique academic years for dropdown
-  const academicYears = [...new Set(reports.map(r => r.academicYear))].sort().reverse();
-
-  // 📌 Fixed Department List
-  const departments = [
-    "Mechanical and Automation",
-    "Computer Science and Engineering",
-    "Civil Engineering",
-    "Electronics and Telecommunication Engineering",
-    "Electronics and Computer Science Engineering",
-    "Information Technology"
-  ];
 
   // Handle download button click
   const handleDownload = async (club, year, reports, clubKey) => {
@@ -84,59 +132,48 @@ const handleBack = ()=>{
       await generateAnnualPDF(club, year, reports);
     } catch (error) {
       console.error("Error generating PDF:", error);
+      setError("Failed to generate PDF. Please try again.");
     } finally {
       setDownloading((prev) => ({ ...prev, [clubKey]: false }));
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="loading-container" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh" }}>
-        <div className="loading-spinner" style={{
-          border: "4px solid #f3f3f3",
-          borderTop: "4px solid #3498db",
-          borderRadius: "50%",
-          width: "40px",
-          height: "40px",
-          animation: "spin 1s linear infinite",
-        }}></div>
-        <p style={{ fontFamily: "Times New Roman", fontSize: "14px", marginTop: "10px" }}>
-          Please wait while we load reports
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="annual-reports-container">
-          <button
-      onClick={handleBack}
-      style={{
-        padding: "10px 20px",
-        backgroundColor: "#3B82F6",
-        color: "black",
-        border: "none",
-        borderRadius: "6px",
-        cursor: "pointer",
-        fontSize: "16px",
-      }}
-      onMouseOver={(e) => (e.target.style.backgroundColor = "#2563EB")}
-      onMouseOut={(e) => (e.target.style.backgroundColor = "#3B82F6")}
-    >
-      ↩
-    </button>
-      <h2>Office Annual Reports</h2>
-      
+      {showModal && (
+        <div className="modal">
+          <div className="modal-content">
+            <p>{modalMessage}</p>
+            <button onClick={closeModal}>OK</button>
+          </div>
+        </div>
+      )}
 
-      {/* 🔍 Search */}
+      {error && (
+        <div className="error-message">
+          <p>{error}</p>
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Please wait while we load reports</p>
+        </div>
+      )}
+
+      <button className="back-btn" onClick={handleBack}>
+        ↩
+      </button>
+      <h2>Office Annual Reports</h2>
+
       <div className="search">
-        {/* Department Dropdown */}
         <select
           className="search-bar"
           value={searchDept}
           onChange={(e) => setSearchDept(e.target.value)}
         >
-          <option value="">All Departments</option>
+          <option value="">Select Department</option>
           {departments.map((dept, idx) => (
             <option key={idx} value={dept}>
               {dept}
@@ -144,13 +181,12 @@ const handleBack = ()=>{
           ))}
         </select>
 
-        {/* Academic Year Dropdown */}
         <select
           className="search-bar"
           value={searchYear}
           onChange={(e) => setSearchYear(e.target.value)}
         >
-          <option value="">All Academic Years</option>
+          <option value="">Select Academic Year</option>
           {academicYears.map((year, idx) => (
             <option key={idx} value={year}>
               {year}
@@ -158,24 +194,42 @@ const handleBack = ()=>{
           ))}
         </select>
 
-        {/* Organization Search */}
-        <input
-          type="text"
-          placeholder="Search by Organization"
+        <select
           className="search-bar"
           value={searchOrg}
           onChange={(e) => setSearchOrg(e.target.value)}
-        />
+          disabled={!searchDept}
+        >
+          <option value="">Select Organization</option>
+          {organizations.length === 0 ? (
+            <option value="" disabled>
+              {searchDept ? "No organizations available" : "Select a department first"}
+            </option>
+          ) : (
+            organizations.map((org, idx) => (
+              <option key={idx} value={org}>
+                {org}
+              </option>
+            ))
+          )}
+        </select>
+
+        <button className="search-btn" onClick={handleSearch}>
+          Search
+        </button>
       </div>
 
-      {/* 📋 Grouped Reports */}
-      {Object.keys(groupedByDept).length === 0 ? (
-        <div className="no-reports" style={{ textAlign: "center", marginTop: "20px" }}>
-          <p style={{ fontFamily: "Times New Roman", fontSize: "16px", color: "#666" }}>
-            No reports found
+      {!isLoading && reports.length === 0 && (
+        <div className="no-reports">
+          <p>
+            {searchDept && searchYear && searchOrg
+              ? "No reports found for the selected filters."
+              : "Please select filters and click Search."}
           </p>
         </div>
-      ) : (
+      )}
+
+      {!isLoading &&
         Object.entries(groupedByDept).map(([dept, clubs], deptIdx) => (
           <div key={deptIdx} className="department-group">
             <h2 className="department-heading">{dept}</h2>
@@ -200,7 +254,7 @@ const handleBack = ()=>{
                     </thead>
                     <tbody>
                       {reports.map((r, i) => (
-                        <tr key={r._id || i}>
+                        <tr key={r.reportId || i}>
                           <td>{i + 1}</td>
                           <td>{r.eventName}</td>
                           <td>{r.organizedBy || "N/A"}</td>
@@ -217,15 +271,16 @@ const handleBack = ()=>{
                       onClick={() => handleDownload(club, year, reports, clubYear)}
                       disabled={downloading[clubYear]}
                     >
-                      {downloading[clubYear] ? "Generating..." : `Download ${club} ${year} Report`}
+                      {downloading[clubYear]
+                        ? "Generating..."
+                        : `Download ${club} ${year} Report`}
                     </button>
                   </div>
                 </div>
               );
             })}
           </div>
-        ))
-      )}
+        ))}
     </div>
   );
 };
