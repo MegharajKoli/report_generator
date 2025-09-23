@@ -11,12 +11,12 @@
   
   body {
     font-family: Arial, sans-serif;
-    background-color: #fff;
+     background-color:#faedcd;
+     /*#FEEEE4  */
+  background:linear-gradient(to right ,#efebce,#EFEBCE) ;
+
     color: #ffffff;
   }
-  
-
-
   
   .container {
     display: flex;
@@ -25,14 +25,15 @@
   
   .left-panel {
     flex: 1;
-    background: #f9f1e7;
+    /* background: #f9f1e7; */
+    
     padding: 60px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     border-top-right-radius: 150px;
     border-bottom-right-radius: 150px ;
-    box-shadow: inset -10px 0 30px -10px #f4c879;
+   
   }
   
   
@@ -44,6 +45,8 @@
   
   .left-panel p {
     font-size: 18px;
+    font-family: 'Times New Roman', Times, serif;
+    font-weight: 300;
     color: #000000;
     font-weight: bold;
     font-family:Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
@@ -95,11 +98,11 @@
   
   .report-btn {
     margin-top: 1px;
-    background-color: #f54c7e;
-    color: white;
+    background-color: #99582a;
+    color: #ffffff;
     border: none;
     padding: 8px 10px;
-    font-weight: 100;
+    font-weight: 600;
     cursor: pointer;
     border-radius: 4px;
     transition: 0.2s ease-in-out;
@@ -118,13 +121,15 @@
   
   .role {
     color: #106694; 
-    
+    font-weight: 300;
     margin-right: 4px;
   }
   
 
 .container .left-panel h1 span{
-    color: #106694;;
+    color: #0d7ab5;
+    font-family: sans-serif ;
+    font-weight:bolder;
 
   }
   .container .left-panel img{

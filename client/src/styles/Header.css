@@ -1,5 +1,6 @@
 .header {
-  background-color: #f3dfb6;
+  background-color: #e7d7ad;
+  
   padding: 4px 20px;
   display: flex;
   justify-content: space-between;
@@ -7,7 +8,8 @@
 }
 
 .header h1 {
-  color: #106694;
+  font-family: sans-serif;
+  color: #5D4037;
   font-size: 30px;
 }
 
@@ -17,10 +19,11 @@
 }
 
 .login-btn {
-  background-color: #54b1e2;
+  background-color: #5D4037;
   padding: 0.5px 20px;
   border-radius: 15px;
-  border: 1px solid black;
+  border: 1px solid #FFEFE5;
+  font-weight: 300;
   font-size: 16px;
   cursor: pointer;
   transition: transform 0.2s ease-in-out;
@@ -39,10 +42,12 @@
 /* Optional: style for logout popup if it exists */
 .logout-popup {
   position: fixed;
+  font-weight: 300;
   top: 10px;
   right: 10px;
-  background-color: #f54c7e;
-  color: white;
+  background-color: #FFEFE5;
+  color: #BC6549;
+  opacity: 100%;
   padding: 10px 20px;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);

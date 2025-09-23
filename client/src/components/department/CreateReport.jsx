@@ -578,7 +578,9 @@ function CreateReport() {
         >
           ↩
         </button>
-        <h2>{isEditMode ? 'Edit Report' : 'Create Report'}</h2>
+        <h2>{isEditMode ? 'Edit Report' : 'Create New Report '}</h2>
+        <h3>Let's create something amazing 📑✨</h3>
+        <h4>Fill in the details below to generate your comprehensive report 🚀</h4>
         {error && <div className="error" style={{ color: 'red', fontSize: '14px', marginBottom: '10px' }}>{error}</div>}
         {success && <div className="success" style={{ color: 'green', fontSize: '14px', marginBottom: '10px' }}>{success}</div>}
         {downloadError && <div className="error" style={{ color: 'red', fontSize: '14px', marginBottom: '10px' }}>{downloadError}</div>}
@@ -615,7 +617,7 @@ function CreateReport() {
               required
               style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
             />
-            <h5 style={{ color: 'grey' }}>Enter Complete name</h5>
+            <h5>Enter Complete name</h5>
           </div>
           <div className="form-group">
             <label>Event Name <span style={{ color: 'red' }}>*</span></label>
@@ -765,7 +767,7 @@ function CreateReport() {
             </button>
           </div>
           <div className="form-group">
-            <label>Objectives<span style={{ color: 'red' }}>*</span></label>
+            <label>Objectives</label>
             {formData.objectives.map((objective, index) => (
               <div key={index} className="dynamic-field">
                 <textarea
@@ -774,7 +776,6 @@ function CreateReport() {
                   placeholder={`Objective ${index + 1}`}
                   rows="3"
                   style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
-                  required
                 />
                 {formData.objectives.length > 1 && (
                   <button

@@ -1,10 +1,12 @@
 .footer {
-  background-color: #f3dfb6;
+  background-color:#e7d7ad;
   text-align: center;
-  padding: 5px;
+  padding: 10px;
   font-size: 20px;
-  color: #333;
+  font-family: sans-serif;
+  color: #5D4037;
   display: flex;
   justify-content: center;
   gap: 6px;
 }
+

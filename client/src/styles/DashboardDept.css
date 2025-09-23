@@ -11,7 +11,9 @@
 body {
   background-color: #fff;
   color: #000;
+  
 }
+
 
 
 /* Container Layout */
@@ -22,31 +24,32 @@ body {
 /* Left Panel */
 .left-panel {
   flex: 1;
-  background: #f9f1e7;
+  background: linear-gradient(to top,#f9f1e7,#e9bf70) ;
   padding: 60px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   border-top-right-radius: 150px;
   border-bottom-right-radius: 150px;
-  box-shadow: inset -10px 0 30px -10px #f4c879;
+  box-shadow: inset -10px 0 30px -10px #f4c879
 }
 
 .left-panel h1 {
   font-size: 32px;
+  font-family: sans-serif;
   margin-bottom: 20px;
   color: #000;
 }
 
 .left-panel h1 span {
-  color: #106694;
+
+  color: #5D4037;
 }
 
 .left-panel p {
   font-size: 18px;
   color: #000;
-  font-weight: bold;
-  font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+  font-family: poppins;
 }
 
 .left-panel img {
@@ -61,6 +64,7 @@ body {
 
 /* Right Panel */
 .right-panel {
+  
   flex: 1;
   padding: 60px 40px;
   display: flex;
@@ -108,7 +112,8 @@ body {
   color: white;
   border: none;
   padding: 8px 10px;
-  font-weight: 100;
+  font-family: sans-serif;
+  font-weight: 300;
   cursor: pointer;
   border-radius: 4px;
   transition: transform 0.2s ease-in-out;
@@ -131,7 +136,7 @@ body {
 }
 
 .role {
-  color: #106694;
+  color: #5D4037;
   font-weight: bold;
 }
 body, html {

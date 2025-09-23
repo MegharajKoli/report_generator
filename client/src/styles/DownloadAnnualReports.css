@@ -17,7 +17,21 @@
   margin-bottom: 20px;
   color: #222;
   font-size: 24px;
-  font-weight: 600;
+  font-family: sans-serif;
+  font-weight: medium ;
+}
+.annual-reports-container p{
+  font-family: sans-serif;
+  color: olive;
+}
+.back-btn{
+  padding: 8px 15px;
+    background-color: rgb(59, 130, 246);
+    color: rgb(0, 0, 0);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px
 }
 
 /* 🔍 Search bar */
@@ -26,6 +40,7 @@
   width: 100%;
   max-width: 350px;
   margin: 0 auto 20px auto;
+  
   padding: 10px 14px;
   border: 1px solid #ddd;
   border-radius: 8px;
@@ -109,7 +124,7 @@
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 14px;
-  color: gray;
+  color: rgb(1, 1, 1);
 }
 
 .reports-table {
