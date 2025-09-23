@@ -759,7 +759,7 @@ function EditReport() {
             </button>
           </div>
           <div className="form-group">
-            <label>Objectives</label>
+            <label>Objectives<span style={{ color: 'red' }}>*</span></label>
             {formData.objectives.map((objective, index) => (
               <div key={index} className="dynamic-field">
                 <textarea
@@ -768,6 +768,7 @@ function EditReport() {
                   placeholder={`Objective ${index + 1}`}
                   rows="3"
                   style={{ fontFamily: "Times New Roman", fontSize: "12px" }}
+                  required
                 />
                 {formData.objectives.length > 1 && (
                   <button

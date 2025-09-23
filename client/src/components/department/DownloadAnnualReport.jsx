@@ -147,14 +147,17 @@ const DownloadAnnualReports = () => {
         </div>
       )}
 
-      {isLoading && (
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Please wait while we load reports</p>
-        </div>
-      )}
 
-      <button className="back-btn" onClick={handleBack}>
+      <button className="back-btn"
+      style={{
+        padding: "10px 20px",
+        backgroundColor: "#3B82F6",
+        color: "black",
+        border: "none",
+        borderRadius: "6px",
+        cursor: "pointer",
+        fontSize: "16px",
+      }} onClick={handleBack}>
         ↩
       </button>
       <h2>Annual Reports - {userDept}</h2>
@@ -202,9 +205,22 @@ const DownloadAnnualReports = () => {
         <div className="no-reports">
           <p>
             {searchYear && searchOrg
-              ? "No reports found for the selected filters."
+              ? "Click Search"
               : "Please select filters and click Search."}
           </p>
+        </div>
+      )}
+      {isLoading && (
+        <div className="loading-container" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <div className="loading-spinner" style={{
+          border: "4px solid #f3f3f3",
+          borderTop: "4px solid #3498db",
+          borderRadius: "50%",
+          width: "40px",
+          height: "40px",
+          animation: "spin 1s linear infinite",
+        }}></div>
+          <p>Please wait while we load reports</p>
         </div>
       )}
 

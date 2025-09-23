@@ -37,52 +37,6 @@ const upload = multer({
 
 // ========== ROUTES ==========
 
-
-router.get("/annual", async (req, res) => {
-  try {
-    const { academicYear, organizedBy } = req.query;
-    const query = {};
-    if (academicYear) query.academicYear = academicYear;
-    if (organizedBy) query.organizedBy = organizedBy;
-
-    const reports = await Report.find(query).sort({ academicYear: -1, eventName: 1 });
-
-    // Convert Buffers to base64
-    const reportsWithBase64 = reports.map(r => ({
-      reportId: r._id,
-      eventName: r.eventName,
-      academicYear: r.academicYear,
-      organizedBy: r.organizedBy,
-
-      poster: r.poster
-        ? `data:image/jpeg;base64,${r.poster.toString("base64")}`
-        : null,
-
-      photographs: r.photographs?.map(
-        buf => `data:image/png;base64,${buf.toString("base64")}`
-      ) || [],
-
-      permissionImage: r.permissionImage
-        ? `data:image/jpeg;base64,${r.permissionImage.toString("base64")}`
-        : null,
-
-      feedback: r.feedback?.map(fb => ({
-        question: fb.question,
-        answer: fb.answer,
-        analytics: fb.analytics
-          ? `data:image/png;base64,${fb.analytics.toString("base64")}`
-          : null
-      })) || []
-    }));
-
-    res.json(reportsWithBase64);  // ✅ send converted data
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-
 // ✅ Create a new report with file uploads
 router.post('/create', authMiddleware, upload.any(), (req, res, next) => {
   console.log('Multer processed files:', req.files?.map(file => ({
@@ -131,6 +85,20 @@ router.get('/minimal', authMiddleware, getMinimalReports);
 // ✅ Search/filter minimal reports
 router.get('/minimal/search', authMiddleware, searchMinimalReports);
 
+
+
+
+router.get('/annual/unique/orgs', async (req, res) => {
+  try {
+    const { department } = req.query;
+    const query = department ? { department } : {};
+    const orgs = await Report.distinct('organizedBy', query);
+    res.json(orgs.filter(Boolean).sort());
+  } catch (error) {
+    console.error("Error fetching unique organizations:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 
 console.log("getAnnualReports is:", getAnnualReports);

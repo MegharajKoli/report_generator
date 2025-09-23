@@ -31,14 +31,12 @@ app.get("/api/reports/annual", async (req, res) => {
     if (academicYear) query.academicYear = academicYear;
     if (organizedBy) query.organizedBy = organizedBy;
 
-    const reports = await Report.find(query).sort({ academicYear: -1, eventName: 1 });
+    const reports = await Report.find(query);
     res.json(reports);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
-
 
 // MongoDB Connection
 mongoose.connect(uri, {

@@ -522,16 +522,6 @@ const updateReport = async (req, res) => {
   }
 };
 
-exports.getMinimalReports = async (req, res) => {
-  try {
-    const reports = await Report.find({}, "eventName department eventDate")
-                                .sort({ eventDate: -1 }); // Latest first
-    res.json(reports);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to fetch reports", error: err.message });
-  }
-};
-
 const removeImage = async (req, res) => {
   try {
     const { reportId, field, index } = req.body;
@@ -555,11 +545,9 @@ const removeImage = async (req, res) => {
 
     // Handle image removal based on field
     if (field === "poster" || field === "permissionImage") {
-      // Remove single image
       report[field] = null;
       console.log(`Removed ${field} from report ${reportId}`);
     } else if (field === "attendance" || field === "photographs") {
-      // Remove image from array at specified index
       if (index < 0 || index >= report[field].length) {
         console.error(`Invalid index ${index} for ${field} in report ${reportId}`);
         return res.status(400).json({ message: `Invalid index for ${field}` });
@@ -567,7 +555,6 @@ const removeImage = async (req, res) => {
       report[field].splice(index, 1);
       console.log(`Removed ${field}[${index}] from report ${reportId}`);
     } else if (field === "feedback") {
-      // Remove analytics from feedback at specified index
       if (index < 0 || index >= report.feedback.length) {
         console.error(`Invalid index ${index} for feedback in report ${reportId}`);
         return res.status(400).json({ message: "Invalid index for feedback" });
@@ -593,8 +580,6 @@ const removeImage = async (req, res) => {
   }
 };
 
-// ✅ Search/filter minimal reports
-// 🔎 Search reports (by eventName, department, academicYear)
 const searchMinimalReports = async (req, res) => {
   try {
     const { search, year } = req.query;
@@ -616,24 +601,89 @@ const searchMinimalReports = async (req, res) => {
 
     res.json(reports);
   } catch (err) {
+    console.error("Error searching minimal reports:", err.message);
     res.status(500).json({ message: "Failed to search reports", error: err.message });
   }
 };
 
-// 📜 Annual Reports
 const getAnnualReports = async (req, res) => {
   try {
-    const reports = await Report.find({}, "eventName department date academicYear organizedBy")
-      .sort({ date: -1 });
+    const { academicYear, organizedBy } = req.query;
 
-    res.status(200).json(reports);
+    // Build query dynamically
+    const query = {};
+    if (academicYear) query.academicYear = academicYear;
+    if (organizedBy) query.organizedBy = organizedBy;
+
+    // Create indexes if not already present
+    await Report.createIndexes([
+      { key: { academicYear: 1 } },
+      { key: { organizedBy: 1 } },
+      { key: { academicYear: -1, eventName: 1 } }
+    ]);
+
+    const reports = await Report.find(query)
+      .populate('department', 'name')
+      .select('-__v')
+      .sort({ academicYear: -1, eventName: 1 })
+      .lean();
+
+    // Convert buffers to base64 for images
+    const reportsWithBase64 = reports.map(r => ({
+      reportId: r._id,
+      eventName: r.eventName,
+      academicYear: r.academicYear,
+      organizedBy: r.organizedBy,
+      department: r.department?.name || r.department,
+      date: r.date,
+      dateFrom: r.dateFrom,
+      dateTo: r.dateTo,
+      tenure: r.tenure,
+      timeFrom: r.timeFrom,
+      timeTo: r.timeTo,
+      venue: r.venue,
+      objectives: r.objectives,
+      outcomes: r.outcomes,
+      sdgs: r.sdgs,
+      studentCoordinators: r.studentCoordinators,
+      facultyCoordinators: r.facultyCoordinators,
+      totalParticipants: r.totalParticipants,
+      femaleParticipants: r.femaleParticipants,
+      maleParticipants: r.maleParticipants,
+      eventType: r.eventType,
+      customEventType: r.customEventType,
+      summary: r.summary,
+      speakers: r.speakers,
+      createdBy: r.createdBy,
+      createdAt: r.createdAt,
+      poster: r.poster
+        ? `data:image/jpeg;base64,${r.poster.toString("base64")}`
+        : null,
+      photographs: r.photographs?.map(
+        buf => `data:image/png;base64,${buf.toString("base64")}`
+      ) || [],
+      permissionImage: r.permissionImage
+        ? `data:image/jpeg;base64,${r.permissionImage.toString("base64")}`
+        : null,
+      attendance: r.attendance?.map(
+        buf => `data:image/png;base64,${buf.toString("base64")}`
+      ) || [],
+      feedback: r.feedback?.map(fb => ({
+        question: fb.question,
+        answer: fb.answer,
+        analytics: fb.analytics
+          ? `data:image/png;base64,${fb.analytics.toString("base64")}`
+          : null
+      })) || []
+    }));
+
+    res.status(200).json(reportsWithBase64);
   } catch (err) {
-    console.error("Error fetching annual reports:", err);
-    res.status(500).json({ message: "Failed to fetch annual reports" });
+    console.error("Error fetching annual reports:", err.message);
+    res.status(500).json({ message: "Failed to fetch annual reports", error: err.message });
   }
 };
 
-// 📋 Minimal Reports (for frontend table)
 const getMinimalReports = async (req, res) => {
   try {
     const reports = await Report.find({}, "eventName department date academicYear organizedBy")
