@@ -370,7 +370,7 @@ function CreateReport() {
   return data; // numbers, booleans, null, etc.
 };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
@@ -406,6 +406,10 @@ function CreateReport() {
     )
       missingFields.push('Custom Event Type');
     if (!cleanedFormData.sdgs.length) missingFields.push('Sustainable Development Goals');
+    if (!Array.isArray(cleanedFormData.outcomes) || cleanedFormData.outcomes.length < 2)
+      missingFields.push('Outcomes (must have at least 2 items)');
+    if (!Array.isArray(cleanedFormData.studentCoordinators) || cleanedFormData.studentCoordinators.length < 2)
+      missingFields.push('Student Coordinators (must have at least 2 items)');
 
     if (missingFields.length > 0) {
       const errorMsg = `Missing required fields: ${missingFields.join(', ')}.`;
@@ -505,7 +509,7 @@ function CreateReport() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+};
 
   const handleDownload = async () => {
     const id = savedReportId || reportId;
@@ -798,7 +802,7 @@ function CreateReport() {
             </button>
           </div>
           <div className="form-group">
-            <label>Outcomes<span style={{ color: 'red' }}>*</span></label>
+            <label>Outcomes<span style={{ color: 'red' }}>*</span><h5 style={{color:'gray'}}>At least two</h5></label>
             {formData.outcomes.map((outcome, index) => (
               <div key={index} className="dynamic-field">
                 <textarea
@@ -890,7 +894,7 @@ function CreateReport() {
             <h5 style={{ color: 'grey' }}>(Click to select/deselect SDGs)</h5>
           </div>
           <div className="form-group">
-            <label>Student Coordinators<span style={{ color: 'red' }}>*</span></label>
+            <label>Student Coordinators<span style={{ color: 'red' }}>*</span><h5 style={{color:'gray'}}>At least two</h5></label>
             {formData.studentCoordinators.map((coordinator, index) => (
               <div key={index} className="dynamic-field">
                 <textarea
