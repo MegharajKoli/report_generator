@@ -557,7 +557,9 @@ function EditReport() {
 
   return (
     <div className="reportcreate">
-      <button
+
+      <div className="create-report">
+              <button
         onClick={handleBack}
         style={{
           padding: "10px 20px",
@@ -573,7 +575,6 @@ function EditReport() {
       >
         ↩
       </button>
-      <div className="create-report">
         <h2>Edit Your Report</h2>
         {error && <div className="error" style={{ color: "red", fontSize: "14px", marginBottom: "10px" }}>{error}</div>}
         {success && <div className="success" style={{ color: "green", fontSize: "14px", marginBottom: "10px" }}>{success}</div>}
@@ -595,6 +596,9 @@ function EditReport() {
           <div className="form-group">
             <label>Academic Year <span style={{ color: 'red' }}>*</span></label>
             <select name="academicYear" value={formData.academicYear} onChange={handleChange} required style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
+              <option value="2024-25">2021-22</option>
+              <option value="2024-25">2022-23</option>
+              <option value="2024-25">2023-24</option>
               <option value="2024-25">2024-25</option>
               <option value="2025-26">2025-26</option>
               <option value="2026-27">2026-27</option>

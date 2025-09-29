@@ -7,8 +7,14 @@
   border-radius: 12px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   line-height: 1.6;
+  border: 1px solid black;
+  
 }
 
+.viewbtn{
+  margin-left: 20px;
+  margin-top: 20px;
+}
 h2 {
   font-size: 28px;
   font-weight: 600;
@@ -39,6 +45,7 @@ h2 {
   font-size: 14px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: #374151;
+  
 }
 
 .report-table th {
@@ -438,6 +445,10 @@ h2 {
   border-top: 1px solid #e5e7eb;
 }
 
+.view-report-container{
+  border: 0.5px solid black ; 
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .view-report {
@@ -527,6 +538,7 @@ h2 {
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 12px;
+
 }
 
 .department-filter {
@@ -553,7 +565,9 @@ h2 {
   height: 40px;
   animation: spin 1s linear infinite;
 }
-
+.search-bar-container input{
+  margin-left: 20px;
+}
 @keyframes spin {
   to {
     transform: rotate(360deg);

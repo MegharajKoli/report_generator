@@ -9,6 +9,7 @@
 .header h1 {
   color: #106694;
   font-size: 30px;
+  font-weight: 100;
 }
 
 .logo {
@@ -30,6 +31,7 @@
   align-items: center;
   gap: 8px;
   justify-content: center;
+  color: black;
 }
 
 .header .login-btn:hover {
@@ -48,3 +50,5 @@
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   z-index: 1000;
 }
+ 
+

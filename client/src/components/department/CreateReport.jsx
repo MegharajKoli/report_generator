@@ -370,7 +370,7 @@ function CreateReport() {
   return data; // numbers, booleans, null, etc.
 };
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
@@ -406,10 +406,6 @@ const handleSubmit = async (e) => {
     )
       missingFields.push('Custom Event Type');
     if (!cleanedFormData.sdgs.length) missingFields.push('Sustainable Development Goals');
-    if (!Array.isArray(cleanedFormData.outcomes) || cleanedFormData.outcomes.length < 2)
-      missingFields.push('Outcomes (must have at least 2 items)');
-    if (!Array.isArray(cleanedFormData.studentCoordinators) || cleanedFormData.studentCoordinators.length < 2)
-      missingFields.push('Student Coordinators (must have at least 2 items)');
 
     if (missingFields.length > 0) {
       const errorMsg = `Missing required fields: ${missingFields.join(', ')}.`;
@@ -509,7 +505,7 @@ const handleSubmit = async (e) => {
     } finally {
       setIsSubmitting(false);
     }
-};
+  };
 
   const handleDownload = async () => {
     const id = savedReportId || reportId;
@@ -604,6 +600,10 @@ const handleSubmit = async (e) => {
           <div className="form-group">
             <label>Academic Year <span style={{ color: 'red' }}>*</span></label>
             <select name="academicYear" value={formData.academicYear} onChange={handleChange} required style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}>
+        
+              <option value="2024-25">2021-22</option>
+              <option value="2024-25">2022-23</option>
+              <option value="2024-25">2023-24</option>
               <option value="2024-25">2024-25</option>
               <option value="2025-26">2025-26</option>
               <option value="2026-27">2026-27</option>
@@ -802,7 +802,7 @@ const handleSubmit = async (e) => {
             </button>
           </div>
           <div className="form-group">
-            <label>Outcomes<span style={{ color: 'red' }}>*</span><h5 style={{color:'gray'}}>At least two</h5></label>
+            <label>Outcomes<span style={{ color: 'red' }}>*</span></label>
             {formData.outcomes.map((outcome, index) => (
               <div key={index} className="dynamic-field">
                 <textarea
@@ -841,7 +841,7 @@ const handleSubmit = async (e) => {
                 className="dropdown-selected"
                 onClick={() => setIsSdgDropdownOpen(!isSdgDropdownOpen)}
               >
-                <span>
+                <span style={{fontSize : "13px", fontFamily: "sans-serif" ,fontWeight: 500}}>
                   {formData.sdgs.length > 0
                     ? formData.sdgs.join(', ')
                     : 'Select SDGs'}
@@ -894,7 +894,7 @@ const handleSubmit = async (e) => {
             <h5 style={{ color: 'grey' }}>(Click to select/deselect SDGs)</h5>
           </div>
           <div className="form-group">
-            <label>Student Coordinators<span style={{ color: 'red' }}>*</span><h5 style={{color:'gray'}}>At least two</h5></label>
+            <label>Student Coordinators<span style={{ color: 'red' }}>*</span></label>
             {formData.studentCoordinators.map((coordinator, index) => (
               <div key={index} className="dynamic-field">
                 <textarea

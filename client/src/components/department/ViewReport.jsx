@@ -113,7 +113,7 @@ const ViewReport = () => {
 
   return (
     <div className="view-report-container">
-          <button
+          <button className="viewbtn"
       onClick={handleBack}
       style={{
         padding: "10px 20px",

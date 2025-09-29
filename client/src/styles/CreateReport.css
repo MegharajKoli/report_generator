@@ -1,11 +1,17 @@
+
+
 .create-report, .create-report label, .create-report input, .create-report textarea, .create-report select, .create-report button, .create-report h2 {
   color: black !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  
+  /* font-family:'Times New Roman', Times, serif; */
+
 }
 
 .create-report input, .create-report textarea, .create-report select {
   border-color: black !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+ /* font-family:'Times New Roman', Times, serif; */
 }
 
 .create-report .form-group label {
@@ -380,4 +386,9 @@ p{
   font-size: 0.875rem;
   margin-top: 0.25rem;
   font-style: italic;
+}
+
+h5{
+  font-size: 10px;
+  font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }

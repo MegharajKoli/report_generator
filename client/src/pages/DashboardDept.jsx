@@ -33,11 +33,11 @@ function DashboardDept() {
                 </div>
                 <div className="report-card" onClick={() => navigate("download-report")}> 
                   <img  className="img" src="/AnnualReport.png" alt="Report Icon" />
-                  <button className="report-btn">Download Annual Report</button>
+                  <button className="report-btn"> Annual Reports</button>
                 </div>
                 <div className="report-card" onClick={() => navigate("view-report")}> 
                   <img  src="/PrevNew.png" alt="Report Icon" />
-                  <button className="report-btn">View Previous Report</button>
+                  <button className="report-btn">Previous Reports</button>
                 </div>
               </>
             )}

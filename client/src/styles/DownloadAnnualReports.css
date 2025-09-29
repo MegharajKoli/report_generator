@@ -6,10 +6,11 @@
   max-width: 900px;
   margin: 40px auto;
   padding: 20px;
-  background: #ffffff;
+  background: #fff;
   border-radius: 12px;
-  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.08);
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  border: 1px solid black;
 }
 
 .annual-reports-container h2 {
@@ -18,19 +19,22 @@
   color: #222;
   font-size: 24px;
   font-weight: 600;
+  
 }
 
 /* 🔍 Search bar */
 .search-bar {
   display: block;
   width: 100%;
-  max-width: 350px;
+  max-width: 205px;
   margin: 0 auto 20px auto;
   padding: 10px 14px;
   border: 1px solid #ddd;
   border-radius: 8px;
   font-size: 14px;
   transition: 0.3s ease;
+   color: black;
+  
 }
 #year {
   color: rgb(122, 122, 122);
@@ -61,6 +65,7 @@
   display: flex;
   align-items: center;
   justify-content: space-around;
+   color: black;
 }
 .reports-table th {
   background-color: #f3f4f6;
@@ -151,6 +156,10 @@
 
 .download-btn:hover {
   background-color: #1d4ed8;
+}
+
+.search-bar{
+  color: black;
 }
 @keyframes spin {
   0% { transform: rotate(0deg); }

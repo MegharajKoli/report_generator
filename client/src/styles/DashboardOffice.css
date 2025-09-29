@@ -3,7 +3,7 @@
 * {
     margin: 0;
     padding: 0;
-    font-family: "Anton", sans-serif;
+    font-family:'Times New Roman', Times, serif;
   font-weight: 400;
   font-style: normal;
     box-sizing: border-box;
@@ -103,6 +103,8 @@
     cursor: pointer;
     border-radius: 4px;
     transition: 0.2s ease-in-out;
+    font-size: 17px;
+    /* width: 150px; */
   }
 
   .report-btn:hover{

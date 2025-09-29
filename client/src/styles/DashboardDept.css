@@ -6,6 +6,7 @@
   box-sizing: border-box;
   font-family: "Anton", sans-serif;
   font-weight: 400;
+
 }
 
 body {
@@ -67,6 +68,7 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  font-size: 2px;
 }
 
 .right-panel h1 {
