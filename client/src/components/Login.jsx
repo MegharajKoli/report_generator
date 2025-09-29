@@ -54,7 +54,7 @@ function Login() {
       <div className="login-box">
         <div className="login-header">
           <img src="/wit_logo.png" alt="WIT Logo" className="logo-img" />
-          <h1 style= {{ fontfamily: "Anton sans-serif"}} className="institute-name">WALCHAND INSTITUTE OF TECHNOLOGY, SOLAPUR</h1>
+          <h1 style= {{ fontfamily: "Anton sans-serif", fontWeight : "bold"} } className="institute-name">WALCHAND INSTITUTE OF TECHNOLOGY, SOLAPUR</h1>
         </div>
 
         <div className="login-content">
@@ -63,7 +63,7 @@ function Login() {
           </div>
 
           <div className="login-form-section">
-            <h2 style={{ fontFamily: "'Lato', sans-serif"  , fontWeight : "bold"}} className="form-title">Report page</h2>
+            <h2 style={{ fontFamily: "'Lato', sans-serif"  , fontWeight : "bold"}} className="form-title">Login With Your Credentials </h2>
 
             {isLoggedOut && (
               <p className="logout-message">You have been successfully logged out.</p>
