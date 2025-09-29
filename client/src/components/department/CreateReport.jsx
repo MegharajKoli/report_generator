@@ -601,9 +601,9 @@ function CreateReport() {
             <label>Academic Year <span style={{ color: 'red' }}>*</span></label>
             <select name="academicYear" value={formData.academicYear} onChange={handleChange} required style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}>
         
-              <option value="2024-25">2021-22</option>
-              <option value="2024-25">2022-23</option>
-              <option value="2024-25">2023-24</option>
+              <option value="2021-22">2021-22</option>
+              <option value="2022-23">2022-23</option>
+              <option value="2023-24">2023-24</option>
               <option value="2024-25">2024-25</option>
               <option value="2025-26">2025-26</option>
               <option value="2026-27">2026-27</option>
