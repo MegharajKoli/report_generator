@@ -31,6 +31,7 @@ const userSchema = new mongoose.Schema({
       "Library", 
       "cultural",
       "Walchand Institute of Technology",
+      "Artificial Intelligence and Data Science",
       "Office", // specifically for the office login
     ],
   },

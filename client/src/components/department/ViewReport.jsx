@@ -116,7 +116,7 @@ const ViewReport = () => {
           <button className="viewbtn"
       onClick={handleBack}
       style={{
-        padding: "10px 20px",
+        padding: "10px 20px 10px 20px ",
         marginBottom: "10px",
         backgroundColor: "#3B82F6",
         color: "black",
@@ -142,12 +142,12 @@ const ViewReport = () => {
 
       {loading ? (
         <div className="loading-spinner">
-          <p>Loading reports...</p>
+          <p style={{fontSize:"14px"}}>Loading reports...</p>
           {/* Basic CSS spinner */}
           <div className="spinner"></div>
         </div>
       ) : filteredReports.length === 0 ? (
-        <p className="no-reports">No reports found.</p>
+        <p className="no-reports" style={{fontSize:"14px",padding: "10px 20px 10px 20px",}}>No reports found.</p>
       ) : (
         <div className="table-wrapper">
           <table className="report-table">
@@ -237,7 +237,7 @@ const ViewReport = () => {
       {showFailureModal && (
         <div className="modal">
           <div className="modal-content" style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
-            <p>{errorMessage}</p>
+            <p style={{fontSize:"14px"}}>{errorMessage}</p>
             <button onClick={closeFailureModal} style={{ fontFamily: "Times New Roman", fontSize: "12px" }}>
               Close
             </button>

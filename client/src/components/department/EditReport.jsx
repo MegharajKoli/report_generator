@@ -90,6 +90,7 @@ function EditReport() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+   const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     async function fetchReport() {
@@ -442,6 +443,7 @@ function EditReport() {
     setIsSubmitting(true);
     setError("");
     setSuccess("");
+    setUploadProgress(0);
 
     const cleanedFormData = sanitizeFormData(formData);
     setFormData(cleanedFormData);
@@ -466,6 +468,7 @@ function EditReport() {
       console.log("Validation failed:", errorMsg);
       setError(errorMsg);
       setIsSubmitting(false);
+      setUploadProgress(0);
       return;
     }
 
@@ -509,6 +512,7 @@ function EditReport() {
       console.error("Error building FormData:", err.message);
       setError("Failed to prepare form data.");
       setIsSubmitting(false);
+      setUploadProgress(0);
       return;
     }
 
@@ -523,6 +527,10 @@ function EditReport() {
             "Content-Type": "multipart/form-data",
             Authorization: `Bearer ${token}`,
           },
+           onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        },
         }
       );
       console.log("Submission successful:", res.data);
@@ -538,6 +546,7 @@ function EditReport() {
       setError(`Failed to update: ${error.response?.data?.error || error.message}`);
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -1190,6 +1199,14 @@ function EditReport() {
               ))}
             </div>
           </div>
+          {isSubmitting && (
+            <div style={{ marginBottom: '10px' }}>
+              <progress value={uploadProgress} max="100" style={{ width: '100%', height: '4px' }} />
+              <div style={{ textAlign: 'center', fontSize: '12px', color: '#374151' }}>
+                {uploadProgress}% Complete
+              </div>
+            </div>
+          )}
           <div className="button-group" style={{ marginTop: 20 }}>
             <button
               type="submit"

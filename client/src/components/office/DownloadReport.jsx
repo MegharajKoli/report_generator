@@ -155,7 +155,7 @@ const DownloadReport = () => {
 
       {error && (
         <div className="error-message">
-          <p>{error}</p>
+          <p style={{fontSize:"14px"}}>{error}</p>
         </div>
       )}
 
@@ -228,7 +228,7 @@ const DownloadReport = () => {
 
       {!isLoading && reports.length === 0 && (
         <div className="no-reports">
-          <p>
+          <p style={{fontSize:"14px"}}>
             {searchDept && searchYear && searchOrg 
               ? "Click Search."
               : "Please select filters and click Search."}
@@ -245,7 +245,7 @@ const DownloadReport = () => {
           height: "40px",
           animation: "spin 1s linear infinite",
         }}></div>
-          <p>Please wait while we load reports</p>
+          <p style={{fontSize:"14px"}}>Please wait while we load reports</p>
         </div>
       )}
 

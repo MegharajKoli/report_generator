@@ -15,13 +15,10 @@ function CreateReport() {
   const isEditMode = !!reportId;
   const [isSdgDropdownOpen, setIsSdgDropdownOpen] = useState(false);
   const sdgDropdownRef = useRef(null);
+  const draftKey = `createReportDraft_${reportId || 'new'}`;
 
-  const handleBack = () => {
-    navigate('/dashboard-dept');
-  };
-
-  const [formData, setFormData] = useState({
-    department: user?.department === 'Walchand Institute of Technology' ? 'Central' : user?.department,
+  const initialFormData = {
+    department: user?.department === 'Walchand Institute of Technology' ? 'Central' : user?.department || '',
     academicYear: '2024-25',
     organizedBy: '',
     eventName: '',
@@ -49,6 +46,37 @@ function CreateReport() {
     speakers: [emptySpeaker],
     feedback: [emptyFeedback],
     photographs: [],
+  };
+
+  const [formData, setFormData] = useState(() => {
+    // Load draft from localStorage if available
+    const savedDraft = localStorage.getItem(draftKey);
+    if (savedDraft) {
+      try {
+        const parsed = JSON.parse(savedDraft);
+        return {
+          ...initialFormData,
+          ...parsed,
+          // Ensure file fields remain null/empty as they can't be serialized
+          poster: null,
+          permissionImage: null,
+          attendance: [],
+          photographs: [],
+          feedback: parsed.feedback?.map(f => ({ ...f, analytics: null })) || [emptyFeedback],
+          // Ensure arrays/objects are properly initialized
+          objectives: parsed.objectives?.length ? parsed.objectives : [''],
+          outcomes: parsed.outcomes?.length ? parsed.outcomes : [''],
+          sdgs: parsed.sdgs?.length ? parsed.sdgs : [],
+          studentCoordinators: parsed.studentCoordinators?.length ? parsed.studentCoordinators : [''],
+          facultyCoordinators: parsed.facultyCoordinators?.length ? parsed.facultyCoordinators : [''],
+          speakers: parsed.speakers?.length ? parsed.speakers : [emptySpeaker],
+        };
+      } catch (err) {
+        console.error('Error parsing draft from localStorage:', err);
+        return initialFormData;
+      }
+    }
+    return initialFormData;
   });
 
   const SDG_OPTIONS = [
@@ -94,11 +122,13 @@ function CreateReport() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [savedReportId, setSavedReportId] = useState(null);
   const [isLoading, setIsLoading] = useState(isEditMode);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const handleBack = () => {
+    navigate('/dashboard-dept');
+  };
 
   useEffect(() => {
-    console.log('Component mounted, user:', user, 'token:', localStorage.getItem('token'));
-    setIsSubmitted(false);
-
     if (isEditMode) {
       const fetchReport = async () => {
         try {
@@ -111,7 +141,7 @@ function CreateReport() {
           console.log('Fetched report data:', reportData);
 
           setFormData({
-            ...formData,
+            ...initialFormData,
             ...reportData,
             sdgs: reportData.sdgs || [],
             objectives: reportData.objectives?.length ? reportData.objectives : [''],
@@ -119,9 +149,9 @@ function CreateReport() {
             studentCoordinators: reportData.studentCoordinators?.length ? reportData.studentCoordinators : [''],
             facultyCoordinators: reportData.facultyCoordinators?.length ? reportData.facultyCoordinators : [''],
             speakers: reportData.speakers?.length ? reportData.speakers : [emptySpeaker],
-            feedback: reportData.feedback?.length ? reportData.feedback : [emptyFeedback],
-            attendance: reportData.attendance?.filter(f => f instanceof File) || [],
-            photographs: reportData.photographs?.filter(f => f instanceof File) || [],
+            feedback: reportData.feedback?.length ? reportData.feedback.map(f => ({ ...f, analytics: null })) : [emptyFeedback],
+            attendance: [],
+            photographs: [],
             poster: null,
             permissionImage: null,
           });
@@ -161,6 +191,25 @@ function CreateReport() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isEditMode, reportId]);
+
+  useEffect(() => {
+    if (!isSubmitted) {
+      const serializable = {
+        ...formData,
+        poster: null,
+        permissionImage: null,
+        attendance: [],
+        photographs: [],
+        feedback: formData.feedback.map(({ analytics, ...rest }) => rest),
+      };
+      try {
+        localStorage.setItem(draftKey, JSON.stringify(serializable));
+        console.log('Draft saved to localStorage:', draftKey);
+      } catch (err) {
+        console.error('Error saving draft to localStorage:', err);
+      }
+    }
+  }, [formData, draftKey, isSubmitted]);
 
   const handleChange = e => {
     const { name, value, type, checked } = e.target;
@@ -342,39 +391,39 @@ function CreateReport() {
   };
 
   const sanitizeFormData = (data) => {
-  if (typeof data === "string") {
-    return data.trim().replace(/\s+/g, " ");
-  }
+    if (typeof data === "string") {
+      return data.trim().replace(/\s+/g, " ");
+    }
 
-  if (Array.isArray(data)) {
-    return data.map((item) => sanitizeFormData(item));
-  }
+    if (Array.isArray(data)) {
+      return data.map((item) => sanitizeFormData(item));
+    }
 
-  if (typeof data === "object" && data !== null) {
-    const sanitizedObj = {};
-    Object.keys(data).forEach((key) => {
-      let value = sanitizeFormData(data[key]);
+    if (typeof data === "object" && data !== null) {
+      const sanitizedObj = {};
+      Object.keys(data).forEach((key) => {
+        let value = sanitizeFormData(data[key]);
 
-      // ✅ Normalize organizedBy: Title Case (first letter of each word capitalized)
-      if (key === "organizedBy" && typeof value === "string") {
-        value = value
-          .toLowerCase()
-          .replace(/\b\w/g, (char) => char.toUpperCase());
-      }
+        if (key === "organizedBy" && typeof value === "string") {
+          value = value
+            .toLowerCase()
+            .replace(/\b\w/g, (char) => char.toUpperCase());
+        }
 
-      sanitizedObj[key] = value;
-    });
-    return sanitizedObj;
-  }
+        sanitizedObj[key] = value;
+      });
+      return sanitizedObj;
+    }
 
-  return data; // numbers, booleans, null, etc.
-};
+    return data;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
     setSuccess('');
+    setUploadProgress(0);
 
     const cleanedFormData = sanitizeFormData(formData);
     setFormData(cleanedFormData);
@@ -406,8 +455,7 @@ function CreateReport() {
     )
       missingFields.push('Custom Event Type');
     if (!cleanedFormData.sdgs.length) missingFields.push('Sustainable Development Goals');
-
-       if (!Array.isArray(cleanedFormData.outcomes) || cleanedFormData.outcomes.length < 2)
+    if (!Array.isArray(cleanedFormData.outcomes) || cleanedFormData.outcomes.length < 2)
       missingFields.push('Outcomes (must have at least 2 items)');
     if (!Array.isArray(cleanedFormData.studentCoordinators) || cleanedFormData.studentCoordinators.length < 2)
       missingFields.push('Student Coordinators (must have at least 2 items)');
@@ -417,6 +465,7 @@ function CreateReport() {
       console.log('Validation failed:', errorMsg);
       setError(errorMsg);
       setIsSubmitting(false);
+      setUploadProgress(0);
       return;
     }
 
@@ -470,6 +519,7 @@ function CreateReport() {
       console.error('Error building FormData:', err.message);
       setError('Failed to prepare form data.');
       setIsSubmitting(false);
+      setUploadProgress(0);
       return;
     }
 
@@ -486,6 +536,10 @@ function CreateReport() {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}`,
         },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        },
       });
       console.log('Submission successful:', res.data);
       setSuccess(
@@ -496,6 +550,7 @@ function CreateReport() {
       setIsSubmitted(true);
       setSavedReportId(res.data.reportId || reportId);
       setShowModal(true);
+      localStorage.removeItem(draftKey);
     } catch (error) {
       console.error('Submission error:', {
         message: error.message,
@@ -503,12 +558,11 @@ function CreateReport() {
         status: error.response?.status,
       });
       setError(
-        `Failed to ${
-          isEditMode ? 'update' : 'submit'
-        }: ${error.response?.data?.error || error.message}`
+        `Failed to ${isEditMode ? 'update' : 'submit'}: ${error.response?.data?.error || error.message}`
       );
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -605,7 +659,6 @@ function CreateReport() {
           <div className="form-group">
             <label>Academic Year <span style={{ color: 'red' }}>*</span></label>
             <select name="academicYear" value={formData.academicYear} onChange={handleChange} required style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}>
-        
               <option value="2021-22">2021-22</option>
               <option value="2022-23">2022-23</option>
               <option value="2023-24">2023-24</option>
@@ -774,7 +827,7 @@ function CreateReport() {
             </button>
           </div>
           <div className="form-group">
-            <label>Objectives<span style={{ color: 'red' }}>*</span></label>
+            <label>Objectives</label>
             {formData.objectives.map((objective, index) => (
               <div key={index} className="dynamic-field">
                 <textarea
@@ -783,7 +836,6 @@ function CreateReport() {
                   placeholder={`Objective ${index + 1}`}
                   rows="3"
                   style={{ fontFamily: 'Times New Roman', fontSize: '12px' }}
-                  required
                 />
                 {formData.objectives.length > 1 && (
                   <button
@@ -841,12 +893,12 @@ function CreateReport() {
           </div>
           <div className="form-group">
             <label>Sustainable Development Goals (SDG) <span style={{ color: 'red' }}>*</span></label>
-            <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}ref={sdgDropdownRef}>
+            <div style={{ position: 'relative', display: 'inline-block', width: '100%' }} ref={sdgDropdownRef}>
               <div
                 className="dropdown-selected"
                 onClick={() => setIsSdgDropdownOpen(!isSdgDropdownOpen)}
               >
-                <span style={{fontSize : "13px", fontFamily: "sans-serif" ,fontWeight: 500}}>
+                <span style={{ fontSize: '13px', fontFamily: 'sans-serif', fontWeight: 500 }}>
                   {formData.sdgs.length > 0
                     ? formData.sdgs.join(', ')
                     : 'Select SDGs'}
@@ -854,27 +906,25 @@ function CreateReport() {
                 <span>{isSdgDropdownOpen ? '▲' : '▼'}</span>
               </div>
               {isSdgDropdownOpen && (
-                <div
-                  className="dropdown-menu"
-                >
+                <div className="dropdown-menu">
                   {SDG_OPTIONS.map((sdg, index) => (
                     <label
                       key={index}
-                          style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '12px 16px',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      borderBottom: index < SDG_OPTIONS.length - 1 ? '1px solid #e5e7eb' : 'none',
-                      fontSize: '14px',
-                      lineHeight: '1.4',
-                      minHeight: '44px',
-                      color: '#374151',
-                      fontWeight: 400
-                    }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '12px 16px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        borderBottom: index < SDG_OPTIONS.length - 1 ? '1px solid #e5e7eb' : 'none',
+                        fontSize: '14px',
+                        lineHeight: '1.4',
+                        minHeight: '44px',
+                        color: '#374151',
+                        fontWeight: 400,
+                      }}
                     >
                       <input
                         type="checkbox"
@@ -882,13 +932,13 @@ function CreateReport() {
                         value={sdg}
                         checked={formData.sdgs.includes(sdg)}
                         onChange={handleChange}
-                         style={{
-                        marginRight: '12px',
-                        flexShrink: 0,
-                        width: '16px',
-                        height: '16px',
-                        accentColor: '#3b82f6'
-                      }}
+                        style={{
+                          marginRight: '12px',
+                          flexShrink: 0,
+                          width: '16px',
+                          height: '16px',
+                          accentColor: '#3b82f6',
+                        }}
                       />
                       {sdg}
                     </label>
@@ -1210,6 +1260,14 @@ function CreateReport() {
               ))}
             </div>
           </div>
+          {isSubmitting && (
+            <div style={{ marginBottom: '10px' }}>
+              <progress value={uploadProgress} max="100" style={{ width: '100%', height: '4px' }} />
+              <div style={{ textAlign: 'center', fontSize: '12px', color: '#374151' }}>
+                {uploadProgress}% Complete
+              </div>
+            </div>
+          )}
           <div className="button-group" style={{ marginTop: 20 }}>
             <button
               type="submit"
@@ -1231,7 +1289,6 @@ function CreateReport() {
           </div>
         </form>
       </div>
-      
     </div>
   );
 }

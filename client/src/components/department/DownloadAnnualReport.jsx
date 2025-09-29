@@ -143,7 +143,7 @@ const DownloadAnnualReports = () => {
 
       {error && (
         <div className="error-message">
-          <p>{error}</p>
+          <p style={{fontSize:"14px"}}>{error}</p>
         </div>
       )}
 

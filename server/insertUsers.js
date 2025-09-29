@@ -9,7 +9,7 @@ mongoose.connect(uri, {
 });
 
 const users = [
-  {
+ /* {
     userId: "library001",
     password: "password123",
     role: "department",
@@ -21,6 +21,14 @@ const users = [
     role: "department",
     department: "Walchand Institute of Technology",
   },
+  */
+ {
+    userId: "aids001",
+    password: "password123",
+    role: "department",
+    department: "Artificial Intelligence and Data Science",
+  },
+
 ];
 
 async function insertUsers() {
