@@ -179,6 +179,8 @@ const DownloadReport = () => {
           className="search-bar"
           value={searchDept}
           onChange={(e) => setSearchDept(e.target.value)}
+           style={{marginRight:"10px"}}
+          
         >
           <option value="">Select Department</option>
           {departments.map((dept, idx) => (
@@ -192,6 +194,7 @@ const DownloadReport = () => {
           className="search-bar"
           value={searchYear}
           onChange={(e) => setSearchYear(e.target.value)}
+          style={{marginRight:"10px"}}
         >
           <option value="">Select Academic Year</option>
           {academicYears.map((year, idx) => (
@@ -206,11 +209,13 @@ const DownloadReport = () => {
           value={searchOrg}
           onChange={(e) => setSearchOrg(e.target.value)}
           disabled={!searchDept}
+          style={{marginRight:"10px"}}
         >
-          <option value="">Select Organization</option>
+          <option value="" >Select Organization</option>
           {organizations.length === 0 ? (
             <option value="" disabled>
               {searchDept ? "No organizations available" : "Select a department first"}
+              
             </option>
           ) : (
             organizations.map((org, idx) => (

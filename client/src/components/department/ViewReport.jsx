@@ -130,7 +130,7 @@ const ViewReport = () => {
     >
       ↩
     </button>
-      <div className="search-bar-container">
+      <div className="search-bar-container" style={{marginRight:"20px"}}>
         <input
           type="text"
           placeholder="Search by event name"
@@ -149,7 +149,7 @@ const ViewReport = () => {
       ) : filteredReports.length === 0 ? (
         <p className="no-reports" style={{fontSize:"14px",padding: "10px 20px 10px 20px",}}>No reports found.</p>
       ) : (
-        <div className="table-wrapper">
+        <div className="table-wrapper" style={{marginRight:"40px"}}>
           <table className="report-table">
             <thead>
               <tr>
